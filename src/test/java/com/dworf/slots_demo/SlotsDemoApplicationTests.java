@@ -160,7 +160,7 @@ class SlotsDemoApplicationTests {
 				new ItemOperationRequest("tester", "pass123", ItemType.IRON_CRATE)
 		);
 		assertEquals(ItemType.IRON_CRATE, openIron.openedCase());
-		assertTrue(openIron.wonAmount().compareTo(new BigDecimal("0.60")) >= 0);
+		assertTrue(openIron.wonAmount().compareTo(BigDecimal.ZERO) >= 0);
 		assertEquals(
 				0,
 				new BigDecimal("82.00").add(openIron.wonAmount()).compareTo(openIron.newBalance())

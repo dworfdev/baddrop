@@ -86,7 +86,7 @@ public class UserController {
         return userService.deleteAccount(request);
     }
 
-    // 1f) Verify promo code (POST) - "admin1234" grants admin access
+    // 1f) Verify promo code (POST) - grants admin access if matches configured admin password
     @PostMapping("/api/users/promo")
     public Map<String, Object> verifyPromo(@RequestBody PromoRequest request) {
         return userService.verifyPromoCode(request != null ? request.promo() : null);

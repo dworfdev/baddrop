@@ -30,8 +30,10 @@ spring:
           no-store: true
           must-revalidate: true
 
-# Configurable Case Math & Dispersion Profiles (Target RTP: 93.00%, 5x - 10x Cap Prizes)
+# Configurable Case Math & Dispersion Profiles (Target RTP: 93.00%, 0.00x Total Loss, 0.002 Jackpot)
 slots:
+  admin:
+    password: ${ADMIN_PASSWORD:admin_new}
   cases:
     paytables:
       IRON_CRATE:

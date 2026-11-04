@@ -1,7 +1,7 @@
 ### ============================================================================
 ### SLOTS DEMO - PLAYER, PENDING TRANSACTIONS & ADMIN API REQUESTS
 ### Player UI: http://localhost:8080/
-### Admin UI:  http://localhost:8080/admin.html (entered via promo "admin1234")
+### Admin UI:  http://localhost:8080/admin.html (entered via promo code)
 ### Allowed crate items: IRON_CRATE (or "iron"), SILVER_CRATE (or "silver"), GOLD_CRATE (or "gold")
 ### ============================================================================
 
@@ -19,7 +19,7 @@ Accept: application/json
 ### 1) Create User, Login, Promo Code, Change Password, Logout & Delete Account
 ### ============================================================================
 
-### 1a) Create User (POST) - initializes balance=0, items=[], luck=0.0
+### 1a) Create User (POST) - initializes balance=0, items=[]
 POST {{host}}/api/users
 Content-Type: application/json
 
@@ -37,7 +37,7 @@ Content-Type: application/json
   "password": "{{password}}"
 }
 
-### 1c) Verify Promo Code (POST) - "admin1234" unlocks Admin page
+### 1c) Verify Promo Code (POST) - configured promo unlocks Admin page
 POST {{host}}/api/users/promo
 Content-Type: application/json
 

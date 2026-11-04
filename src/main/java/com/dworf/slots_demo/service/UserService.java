@@ -19,6 +19,7 @@ import com.dworf.slots_demo.entity.TransactionType;
 import com.dworf.slots_demo.entity.User;
 import com.dworf.slots_demo.repository.BalanceTransactionRepository;
 import com.dworf.slots_demo.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +34,6 @@ import java.util.Map;
 @Service
 public class UserService {
 
-    public static final String ADMIN_PROMO_CODE = "admin1234";
     public static final long DEPOSIT_TIMER_SECONDS = 15 * 60L;
     public static final BigDecimal MIN_DEPOSIT_AMOUNT = new BigDecimal("5.00");
     public static final BigDecimal MIN_WITHDRAW_AMOUNT = new BigDecimal("10.00");
@@ -41,15 +41,18 @@ public class UserService {
     private final UserRepository userRepository;
     private final BalanceTransactionRepository transactionRepository;
     private final CaseOpenerEngine caseOpenerEngine;
+    private final String adminPassword;
 
     public UserService(
             UserRepository userRepository,
             BalanceTransactionRepository transactionRepository,
-            CaseOpenerEngine caseOpenerEngine
+            CaseOpenerEngine caseOpenerEngine,
+            @Value("${slots.admin.password:admin1234}") String adminPassword
     ) {
         this.userRepository = userRepository;
         this.transactionRepository = transactionRepository;
         this.caseOpenerEngine = caseOpenerEngine;
+        this.adminPassword = adminPassword;
     }
 
     @Transactional
@@ -467,7 +470,7 @@ public class UserService {
     }
 
     public Map<String, Object> verifyPromoCode(String promo) {
-        if (promo != null && ADMIN_PROMO_CODE.equals(promo.trim())) {
+        if (promo != null && adminPassword != null && !adminPassword.isBlank() && adminPassword.trim().equals(promo.trim())) {
             return Map.of(
                     "valid", true,
                     "redirectUrl", "/admin.html",

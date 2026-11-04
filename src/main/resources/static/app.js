@@ -576,7 +576,7 @@
                         caseOutcomeTitle.textContent = isJackpot ? 'Jackpot!' : 'You won';
                         caseOutcomeTitle.classList.toggle('jackpot', isJackpot);
                     }
-                    caseOutcomeUsdtAmount.textContent = `+$${won.toFixed(2)} USDT`;
+                    caseOutcomeUsdtAmount.textContent = won > 0 ? `+$${won.toFixed(2)} USDT` : `$0.00 USDT`;
                     caseOutcomeUsdtAmount.classList.toggle('jackpot', isJackpot);
                     caseOutcomeModal.classList.add('open');
                 }
@@ -851,7 +851,7 @@
     });
 
     // =========================================================================
-    // TAB 3: PROFILE ACTIONS & PROMO FIELD ("admin1234")
+    // TAB 3: PROFILE ACTIONS & PROMO FIELD
     // =========================================================================
     async function handlePromoSubmit() {
         const code = promoInput.value.trim();
