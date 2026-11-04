@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BADDROP - Admin Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/admin.css?v=12" />
+</head>
+<body>
+    <div class="admin-frame">
+        <!-- TOP BAR WITH EXIT BUTTON -->
+        <header class="admin-topbar">
+            <div class="admin-title-cluster">
+                <span class="admin-badge-dot"></span>
+                <span>ADMIN PANEL</span>
+            </div>
+            <button id="exitAdminBtn" type="button" class="exit-btn">Exit</button>
+        </header>
+
+        <!-- MAIN STAGE -->
+        <main class="admin-stage">
+            <!-- SEARCH BAR: FIND SPECIFIC USER -->
+            <section class="search-section">
+                <div class="search-bar-row">
+                    <input
+                        id="userSearchInput"
+                        type="text"
+                        class="admin-search-input"
+                        placeholder="Find specific user by username (leave blank for all pending transactions)..."
+                        autocomplete="off"
+                    />
+                    <button id="findUserBtn" type="button" class="admin-action-btn">Find User</button>
+                </div>
+            </section>
+
+            <!-- =========================================================== -->
+            <!-- VIEW 1 (DEFAULT): ALL USERS' PENDING TRANSACTIONS           -->
+            <!-- =========================================================== -->
+            <section id="defaultPendingView" class="admin-view active">
+                <div class="view-header-row">
+                    <h1 class="section-heading">All Pending Transactions</h1>
+                    <button id="refreshPendingBtn" type="button" class="admin-outline-btn">Refresh</button>
+                </div>
+
+                <div id="allPendingList" class="transactions-list">
+                    <!-- Populated dynamically -->
+                </div>
+            </section>
+
+            <!-- =========================================================== -->
+            <!-- VIEW 2: SPECIFIC USER ADMIN PROFILE                         -->
+            <!-- =========================================================== -->
+            <section id="userDetailView" class="admin-view">
+                <div class="back-row">
+                    <button id="backToDefaultBtn" type="button" class="admin-outline-btn">
+                        &larr; Back to pending transactions
+                    </button>
+                </div>
+
+                <h1 class="section-heading">User Profile (Admin)</h1>
+
+                <!-- Circular Avatar (same style as player profile page) -->
+                <div class="avatar-wrapper">
+                    <div class="mock-avatar-circle">
+                        <img src="/imgs/mock_avatar.png" alt="User Avatar" class="avatar-img" />
+                    </div>
+                </div>
+
+                <!-- Username & Balance Info -->
+                <div class="profile-info-list">
+                    <div class="profile-info-line">
+                        Username - <span id="adminDetailUsername" class="mono-bold"></span>
+                    </div>
+                    <div class="profile-info-line">
+                        Balance - $<span id="adminDetailBalance" class="mono-bold">0.00</span>
+                    </div>
+                </div>
+
+                <!-- User's Pending Transactions with APPROVE / REJECT -->
+                <div class="admin-subsection">
+                    <h2 class="subsection-heading">Pending Transactions</h2>
+                    <div id="userPendingList" class="transactions-list">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- User's Saved Statistics Timeline (Green = Deposit, Red = Withdraw) -->
+                <div class="admin-subsection">
+                    <div class="stats-header-row">
+                        <h2 class="subsection-heading">User Statistics Timeline</h2>
+                        <div class="stats-legend">
+                            <span class="legend-item"><span class="legend-dot deposit"></span> Deposit (+)</span>
+                            <span class="legend-item"><span class="legend-dot withdraw"></span> Withdraw (&minus;)</span>
+                        </div>
+                    </div>
+                    <div id="userStatsSummaryRow" class="stats-summary-row"></div>
+                    <div id="userStatsTimeline" class="stats-timeline-card">
+                        <!-- Populated dynamically with Y-axis ($ amount) and X-axis (#count & date/time) -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+    <script src="/admin.js?v=12"></script>
+</body>
+</html>

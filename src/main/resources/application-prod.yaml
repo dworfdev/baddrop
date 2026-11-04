@@ -1,0 +1,98 @@
+# =============================================================================
+# PROD CONFIGURATION (Main Database: MySQL via Spring Data JPA)
+# All connection & server settings are driven by environment variables
+# =============================================================================
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: ${APP_NAME:baddrop}
+  datasource:
+    url: ${DB_URL:jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:baddrop_db}?createDatabaseIfNotExist=true&useSSL=${DB_USE_SSL:false}&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:30000}
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    open-in-view: false
+    show-sql: ${JPA_SHOW_SQL:false}
+  h2:
+    console:
+      enabled: false
+  web:
+    resources:
+      cache:
+        period: 0
+        cachecontrol:
+          no-cache: true
+          no-store: true
+          must-revalidate: true
+
+# Configurable Case Math & Dispersion Profiles (Target RTP: 93.00%, 5x - 10x Cap Prizes)
+slots:
+  cases:
+    paytables:
+      IRON_CRATE:
+        - multiplier: 0.15
+          probability: 0.200
+          label: "Common Scrap (0.15x)"
+        - multiplier: 0.50
+          probability: 0.310
+          label: "Low Return (0.50x)"
+        - multiplier: 0.90
+          probability: 0.230
+          label: "Near Even (0.90x)"
+        - multiplier: 1.50
+          probability: 0.180
+          label: "Small Win (1.50x)"
+        - multiplier: 2.80
+          probability: 0.060
+          label: "Nice Win (2.80x)"
+        - multiplier: 5.00
+          probability: 0.020
+          label: "Cap Prize (5.00x)"
+      SILVER_CRATE:
+        - multiplier: 0.10
+          probability: 0.200
+          label: "Common Scrap (0.10x)"
+        - multiplier: 0.45
+          probability: 0.340
+          label: "Low Return (0.45x)"
+        - multiplier: 0.85
+          probability: 0.240
+          label: "Near Even (0.85x)"
+        - multiplier: 1.70
+          probability: 0.140
+          label: "Decent Win (1.70x)"
+        - multiplier: 3.50
+          probability: 0.070
+          label: "Big Win (3.50x)"
+        - multiplier: 7.00
+          probability: 0.010
+          label: "Cap Prize (7.00x)"
+      GOLD_CRATE:
+        - multiplier: 0.08
+          probability: 0.300
+          label: "Broken Junk (0.08x)"
+        - multiplier: 0.40
+          probability: 0.240
+          label: "Low Return (0.40x)"
+        - multiplier: 0.80
+          probability: 0.250
+          label: "Near Even (0.80x)"
+        - multiplier: 2.00
+          probability: 0.145
+          label: "Great Win (2.00x)"
+        - multiplier: 4.50
+          probability: 0.060
+          label: "Epic Win (4.50x)"
+        - multiplier: 10.00
+          probability: 0.005
+          label: "Gold Jackpot (10.00x)"
+

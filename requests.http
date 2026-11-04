@@ -1,0 +1,188 @@
+### ============================================================================
+### SLOTS DEMO - PLAYER, PENDING TRANSACTIONS & ADMIN API REQUESTS
+### Player UI: http://localhost:8080/
+### Admin UI:  http://localhost:8080/admin.html (entered via promo "admin1234")
+### Allowed crate items: IRON_CRATE (or "iron"), SILVER_CRATE (or "silver"), GOLD_CRATE (or "gold")
+### ============================================================================
+
+@host = http://localhost:8080
+@username = player1
+@password = secret123
+@newPassword = newSecret456
+
+### 0) API Overview
+GET {{host}}/api
+Accept: application/json
+
+
+### ============================================================================
+### 1) Create User, Login, Promo Code, Change Password, Logout & Delete Account
+### ============================================================================
+
+### 1a) Create User (POST) - initializes balance=0, items=[], luck=0.0
+POST {{host}}/api/users
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}"
+}
+
+### 1b) Login User (POST)
+POST {{host}}/api/users/login
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}"
+}
+
+### 1c) Verify Promo Code (POST) - "admin1234" unlocks Admin page
+POST {{host}}/api/users/promo
+Content-Type: application/json
+
+{
+  "promo": "admin1234"
+}
+
+### 1d) Change Password (POST)
+POST {{host}}/api/users/password
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}",
+  "newPassword": "{{newPassword}}"
+}
+
+### 1d-revert) Change Password back to original (POST)
+POST {{host}}/api/users/password
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{newPassword}}",
+  "newPassword": "{{password}}"
+}
+
+### 1e) Logout User (POST)
+POST {{host}}/api/users/logout
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}"
+}
+
+### 1f) Delete Account (POST)
+POST {{host}}/api/users/delete
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}"
+}
+
+
+### ============================================================================
+### 2) Pending Deposit / Withdraw Requests & Admin Approval / Rejection
+### ============================================================================
+
+### 2a) Player Deposit Request (creates PENDING transaction; balance unchanged until approved)
+POST {{host}}/api/users/balance/deposit
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}",
+  "amount": 250.00
+}
+
+### 2b) Admin: Get All Pending Transactions Across All Users
+GET {{host}}/api/admin/transactions/pending
+Accept: application/json
+
+### 2c) Admin: Approve Pending Transaction #1 (adds deposit amount to user balance)
+POST {{host}}/api/admin/transactions/1/approve
+Content-Type: application/json
+
+### 2d) Player Withdraw Request (subtracts immediately & creates PENDING transaction)
+POST {{host}}/api/users/balance/withdraw
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}",
+  "amount": 75.50
+}
+
+### 2e) Admin: Reject/Decline Pending Transaction #2 (refunds withdrawal back to user balance)
+POST {{host}}/api/admin/transactions/2/reject
+Content-Type: application/json
+
+
+### ============================================================================
+### 3) Buy Case on Marketplace (POST)
+### Items & Prices: "pepe-iron" / "IRON_CRATE" ($2), "shiba-inu-gold" / "SILVER_CRATE" ($5), "doge-amethyst" / "GOLD_CRATE" ($11)
+### ============================================================================
+
+### 3a) Player: Buy a case from Marketplace (subtracts price from balance & adds to inventory)
+POST {{host}}/api/users/items/buy
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}",
+  "item": "IRON_CRATE"
+}
+
+
+### ============================================================================
+### 4) Change User's Luck (POST)
+### Luck must be between 0.0 and 1.0
+### ============================================================================
+POST {{host}}/api/users/luck
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "luck": 0.0
+}
+
+
+### ============================================================================
+### 5) Get Users & Admin User Overview (GET)
+### ============================================================================
+
+### 5a) Get all users (no arguments)
+GET {{host}}/api/users
+Accept: application/json
+
+### 5b) Get top 3 most rich users for LIVE leaderboard
+GET {{host}}/api/users/top
+Accept: application/json
+
+### 5c) Get 1 specific user (player endpoint)
+GET {{host}}/api/users/user?username={{username}}&password={{password}}
+Accept: application/json
+
+### 5d) Admin: Find specific user (returns username, balance, pending transactions, cases)
+GET {{host}}/api/admin/users/{{username}}
+Accept: application/json
+
+
+### ============================================================================
+### 6) Get 1 User's Balance, Items, or Luck (GET)
+### ============================================================================
+
+### 6a) Get 1 user's balance
+GET {{host}}/api/users/balance?username={{username}}&password={{password}}
+Accept: application/json
+
+### 6b) Get 1 user's items
+GET {{host}}/api/users/items?username={{username}}&password={{password}}
+Accept: application/json
+
+### 6c) Get 1 user's luck
+GET {{host}}/api/users/luck?username={{username}}&password={{password}}
+Accept: application/json
