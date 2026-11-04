@@ -19,6 +19,7 @@ import com.dworf.slots_demo.service.CaseOpenerEngine;
 import com.dworf.slots_demo.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.server.ResponseStatusException;
@@ -45,6 +46,9 @@ class SlotsDemoApplicationTests {
 
 	@Autowired
 	private UserService userService;
+
+	@Value("${slots.admin.password:admin_new}")
+	private String testAdminPassword;
 
 	@Test
 	void contextLoadsAndPendingTransactionsAndAdminFlowsWork() {
@@ -168,7 +172,7 @@ class SlotsDemoApplicationTests {
 		assertEquals(List.of(ItemType.SILVER_CRATE, ItemType.GOLD_CRATE), openIron.remainingItems());
 
 		// 5) Promo code validation
-		Map<String, Object> validPromo = userService.verifyPromoCode("admin1234");
+		Map<String, Object> validPromo = userService.verifyPromoCode(testAdminPassword);
 		assertEquals(true, validPromo.get("valid"));
 		assertThrows(ResponseStatusException.class, () -> userService.verifyPromoCode("wrongcode"));
 
