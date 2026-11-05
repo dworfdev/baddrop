@@ -38,6 +38,8 @@ spring:
 slots:
   admin:
     password: ${ADMIN_PASSWORD:}
+  bankroll:
+    initial-prize-pool: ${BANKROLL_INITIAL_PRIZE_POOL:0.0000}
   cases:
     paytables:
       IRON_CRATE:

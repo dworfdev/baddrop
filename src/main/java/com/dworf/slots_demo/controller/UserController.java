@@ -3,6 +3,7 @@ package com.dworf.slots_demo.controller;
 import com.dworf.slots_demo.dto.AdminUserOverviewResponse;
 import com.dworf.slots_demo.dto.BalanceOperationRequest;
 import com.dworf.slots_demo.dto.BalanceResponse;
+import com.dworf.slots_demo.dto.BankrollResponse;
 import com.dworf.slots_demo.dto.ChangePasswordRequest;
 import com.dworf.slots_demo.dto.ConfirmDepositRequest;
 import com.dworf.slots_demo.dto.DepositSessionResponse;
@@ -135,6 +136,12 @@ public class UserController {
     @PostMapping("/api/admin/transactions/{txHash}/reject")
     public TransactionResponse rejectTransaction(@PathVariable String txHash) {
         return userService.rejectTransaction(txHash);
+    }
+
+    // 2f) Admin: Platform bankroll metrics - profit pool, floor buffer, house profit (GET)
+    @GetMapping("/api/admin/bankroll")
+    public BankrollResponse getBankroll() {
+        return userService.getBankroll();
     }
 
     // 3) Player: Buy case from marketplace (POST) - $2 pepe-iron, $5 shiba-inu-gold, $11 doge-amethyst

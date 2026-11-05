@@ -17,6 +17,9 @@
     const userStatsSummaryRow = document.getElementById('userStatsSummaryRow');
     const userStatsTimeline = document.getElementById('userStatsTimeline');
     const toastContainer = document.getElementById('toastContainer');
+    const metricProfitPool = document.getElementById('metricProfitPool');
+    const metricFloorBuffer = document.getElementById('metricFloorBuffer');
+    const metricHouseProfit = document.getElementById('metricHouseProfit');
 
     function showToast(message, isError = false) {
         const toast = document.createElement('div');
@@ -54,6 +57,31 @@
             throw new Error(msg);
         }
         return data;
+    }
+
+    // =========================================================================
+    // 0) BANKROLL METRICS: PROFIT POOL / FLOOR BUFFER / HOUSE PROFIT
+    // =========================================================================
+    function formatMoney(value) {
+        const n = Number(value);
+        return `$${(Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        })}`;
+    }
+
+    async function loadBankroll() {
+        try {
+            const bankroll = await callApi('GET', '/api/admin/bankroll');
+            metricProfitPool.textContent = formatMoney(bankroll.profitPool);
+            metricFloorBuffer.textContent = bankroll.floorBufferRate || '33%';
+            metricHouseProfit.textContent = formatMoney(bankroll.houseProfit);
+        } catch (_) {}
+    }
+
+    // Refresh = bankroll metrics + pending transactions list
+    async function refreshDashboard() {
+        await Promise.all([loadBankroll(), loadAllPendingTransactions()]);
     }
 
     // =========================================================================
@@ -301,13 +329,13 @@
         loadAllPendingTransactions();
     });
 
-    refreshPendingBtn.addEventListener('click', loadAllPendingTransactions);
+    refreshPendingBtn.addEventListener('click', refreshDashboard);
 
     // 3) Exit button - leaves admin page and returns to logged in user page
     exitAdminBtn.addEventListener('click', () => {
         window.location.href = '/';
     });
 
-    // Initial load: default view shows all users' pending transactions
-    loadAllPendingTransactions();
+    // Initial load: bankroll metrics + default view with all users' pending transactions
+    refreshDashboard();
 })();

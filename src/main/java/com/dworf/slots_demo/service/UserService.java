@@ -3,6 +3,7 @@ package com.dworf.slots_demo.service;
 import com.dworf.slots_demo.dto.AdminUserOverviewResponse;
 import com.dworf.slots_demo.dto.BalanceOperationRequest;
 import com.dworf.slots_demo.dto.BalanceResponse;
+import com.dworf.slots_demo.dto.BankrollResponse;
 import com.dworf.slots_demo.dto.ChangePasswordRequest;
 import com.dworf.slots_demo.dto.ConfirmDepositRequest;
 import com.dworf.slots_demo.dto.DepositSessionResponse;
@@ -41,17 +42,20 @@ public class UserService {
     private final UserRepository userRepository;
     private final BalanceTransactionRepository transactionRepository;
     private final CaseOpenerEngine caseOpenerEngine;
+    private final CaseOpeningService caseOpeningService;
     private final String adminPassword;
 
     public UserService(
             UserRepository userRepository,
             BalanceTransactionRepository transactionRepository,
             CaseOpenerEngine caseOpenerEngine,
+            CaseOpeningService caseOpeningService,
             @Value("${slots.admin.password:admin1234}") String adminPassword
     ) {
         this.userRepository = userRepository;
         this.transactionRepository = transactionRepository;
         this.caseOpenerEngine = caseOpenerEngine;
+        this.caseOpeningService = caseOpeningService;
         this.adminPassword = adminPassword;
     }
 
@@ -441,7 +445,7 @@ public class UserService {
             );
         }
 
-        CaseOpenerEngine.Outcome outcome = caseOpenerEngine.openCase(request.item());
+        CaseOpenerEngine.Outcome outcome = caseOpeningService.open(request.item()).outcome();
         CaseOpenerEngine.CaseMathStats stats = caseOpenerEngine.calculateStats(request.item());
         boolean isJackpot = caseOpenerEngine.isMaxWin(request.item(), outcome.winAmount());
 
@@ -467,6 +471,10 @@ public class UserService {
         return Arrays.stream(ItemType.values())
                 .map(caseOpenerEngine::calculateStats)
                 .toList();
+    }
+
+    public BankrollResponse getBankroll() {
+        return caseOpeningService.getBankroll();
     }
 
     public Map<String, Object> verifyPromoCode(String promo) {

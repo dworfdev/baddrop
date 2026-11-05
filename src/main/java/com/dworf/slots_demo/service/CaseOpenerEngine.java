@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -76,6 +77,18 @@ public class CaseOpenerEngine {
             if (!validateMathematics(itemType)) {
                 throw new IllegalStateException("Mathematical validation failed for case: " + itemType);
             }
+
+            // The floor buffer is the only thing guaranteeing a drop is always payable, so every
+            // case needs at least one floor (value <= 33% of cost) item with a non-zero weight.
+            boolean hasFloorItem = outcomes.stream()
+                    .anyMatch(o -> o.probability() > 0.0 && BankrollSplit.isFloorValue(itemType, o.winAmount()));
+            if (!hasFloorItem) {
+                throw new IllegalStateException(
+                        "Case " + itemType + " needs at least one drop worth <= "
+                                + BankrollSplit.floorThreshold(itemType).toPlainString()
+                                + " (floor item) to guarantee solvency"
+                );
+            }
         }
     }
 
@@ -132,25 +145,40 @@ public class CaseOpenerEngine {
     }
 
     /**
-     * Core game loop logic for resolving a case opening via Cumulative Distribution Function (CDF).
+     * Resolves a drop for the Split-Inflow Dynamic Bankroll Engine with Ephemeral Floor Buffer.
+     * Dynamic Pre-Roll Filtering:
+     * ActivePool = { item in CrateItems | Value(item) <= MaxAllowedDrop }
+     * where MaxAllowedDrop = PrizePool_current + FloorBuffer.
+     * Weights (yaml probabilities) of eligible items are re-normalised over W_total and rolled via SecureRandom.
      */
-    public Outcome openCase(ItemType itemType) {
+    public Outcome drawOutcome(ItemType itemType, BigDecimal maxAllowedDrop) {
         List<Outcome> table = paytables.get(itemType);
         if (table == null || table.isEmpty()) {
             throw new IllegalArgumentException("No paytable configured for " + itemType);
         }
 
-        double randomValue = rng.nextDouble(); // Uniform float in [0.0, 1.0)
-        double cumulativeProbability = 0.0;
-
+        List<Outcome> activePool = new ArrayList<>(table.size());
+        double totalWeight = 0.0;
         for (Outcome outcome : table) {
-            cumulativeProbability += outcome.probability();
-            if (randomValue < cumulativeProbability) {
+            boolean eligible = outcome.winAmount().compareTo(maxAllowedDrop) <= 0;
+            if (eligible && outcome.probability() > 0.0) {
+                activePool.add(outcome);
+                totalWeight += outcome.probability();
+            }
+        }
+        if (activePool.isEmpty()) {
+            throw new IllegalStateException("No eligible drop for " + itemType + " with max allowed drop " + maxAllowedDrop);
+        }
+
+        double roll = rng.nextDouble() * totalWeight; // uniform in [0, W_total)
+        double cumulative = 0.0;
+        for (Outcome outcome : activePool) {
+            cumulative += outcome.probability();
+            if (roll < cumulative) {
                 return outcome;
             }
         }
-
-        return table.get(table.size() - 1);
+        return activePool.get(activePool.size() - 1);
     }
 
     public boolean isMaxWin(ItemType itemType, BigDecimal winAmount) {

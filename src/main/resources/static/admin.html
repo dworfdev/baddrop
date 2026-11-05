@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/admin.css?v=13" />
+    <link rel="stylesheet" href="/admin.css?v=14" />
 </head>
 <body>
     <div class="admin-frame">
@@ -40,6 +40,22 @@
             <!-- VIEW 1 (DEFAULT): ALL USERS' PENDING TRANSACTIONS           -->
             <!-- =========================================================== -->
             <section id="defaultPendingView" class="admin-view active">
+                <!-- BANKROLL METRICS (profit pool / floor buffer / house profit) -->
+                <div class="bankroll-metrics" id="bankrollMetrics">
+                    <div class="metric-card metric-profit">
+                        <span class="metric-label">Profit Pool</span>
+                        <span class="metric-value" id="metricProfitPool">$0.00</span>
+                    </div>
+                    <div class="metric-card metric-floor">
+                        <span class="metric-label">Floor Buffer Rate</span>
+                        <span class="metric-value" id="metricFloorBuffer">33%</span>
+                    </div>
+                    <div class="metric-card metric-house">
+                        <span class="metric-label">House Profit</span>
+                        <span class="metric-value" id="metricHouseProfit">$0.00</span>
+                    </div>
+                </div>
+
                 <div class="view-header-row">
                     <h1 class="section-heading">All Pending Transactions</h1>
                     <button id="refreshPendingBtn" type="button" class="admin-outline-btn">Refresh</button>
@@ -106,6 +122,6 @@
     </div>
 
     <div id="toastContainer" class="toast-container"></div>
-    <script src="/admin.js?v=12"></script>
+    <script src="/admin.js?v=13"></script>
 </body>
 </html>
