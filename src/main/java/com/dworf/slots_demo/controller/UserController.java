@@ -1,9 +1,7 @@
 package com.dworf.slots_demo.controller;
 
-import com.dworf.slots_demo.dto.AdminUserOverviewResponse;
 import com.dworf.slots_demo.dto.BalanceOperationRequest;
 import com.dworf.slots_demo.dto.BalanceResponse;
-import com.dworf.slots_demo.dto.BankrollResponse;
 import com.dworf.slots_demo.dto.ChangePasswordRequest;
 import com.dworf.slots_demo.dto.ConfirmDepositRequest;
 import com.dworf.slots_demo.dto.DepositSessionResponse;
@@ -11,16 +9,13 @@ import com.dworf.slots_demo.dto.ItemOperationRequest;
 import com.dworf.slots_demo.dto.ItemsResponse;
 import com.dworf.slots_demo.dto.OpenCaseResponse;
 import com.dworf.slots_demo.dto.PromoRequest;
-import com.dworf.slots_demo.dto.TransactionResponse;
 import com.dworf.slots_demo.dto.UserCredentialsRequest;
 import com.dworf.slots_demo.dto.UserResponse;
 import com.dworf.slots_demo.entity.ItemType;
 import com.dworf.slots_demo.service.CaseOpenerEngine;
 import com.dworf.slots_demo.service.UserService;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -76,14 +71,9 @@ public class UserController {
         return userService.logoutUser(request);
     }
 
-    // 1e) Delete account (POST & DELETE)
+    // 1e) Delete account (POST) - the frontend (app.js) uses POST /api/users/delete
     @PostMapping("/api/users/delete")
-    public Map<String, String> deleteAccountPost(@RequestBody UserCredentialsRequest request) {
-        return userService.deleteAccount(request);
-    }
-
-    @DeleteMapping("/api/users")
-    public Map<String, String> deleteAccountDelete(@RequestBody UserCredentialsRequest request) {
+    public Map<String, String> deleteAccount(@RequestBody UserCredentialsRequest request) {
         return userService.deleteAccount(request);
     }
 
@@ -118,30 +108,6 @@ public class UserController {
     @PostMapping("/api/users/balance/withdraw")
     public UserResponse withdraw(@RequestBody BalanceOperationRequest request) {
         return userService.withdraw(request);
-    }
-
-    // 2c) Admin: Get all pending transactions across all users (GET)
-    @GetMapping("/api/admin/transactions/pending")
-    public List<TransactionResponse> getAllPendingTransactions() {
-        return userService.getAllPendingTransactions();
-    }
-
-    // 2d) Admin: Approve a pending transaction by txHash (POST)
-    @PostMapping("/api/admin/transactions/{txHash}/approve")
-    public TransactionResponse approveTransaction(@PathVariable String txHash) {
-        return userService.approveTransaction(txHash);
-    }
-
-    // 2e) Admin: Reject/Decline a pending transaction by txHash (POST)
-    @PostMapping("/api/admin/transactions/{txHash}/reject")
-    public TransactionResponse rejectTransaction(@PathVariable String txHash) {
-        return userService.rejectTransaction(txHash);
-    }
-
-    // 2f) Admin: Platform bankroll metrics - profit pool, floor buffer, house profit (GET)
-    @GetMapping("/api/admin/bankroll")
-    public BankrollResponse getBankroll() {
-        return userService.getBankroll();
     }
 
     // 3) Player: Buy case from marketplace (POST) - $2 pepe-iron, $5 shiba-inu-gold, $11 doge-amethyst
@@ -183,12 +149,6 @@ public class UserController {
     ) {
         UserCredentialsRequest creds = resolveCredentials(username, password, body);
         return userService.getUser(creds.username(), creds.password());
-    }
-
-    // 5d) Admin: Get specific user's full overview including pending transactions & cases (GET)
-    @GetMapping("/api/admin/users/{username}")
-    public AdminUserOverviewResponse getAdminUserOverview(@PathVariable String username) {
-        return userService.getAdminUserOverview(username);
     }
 
     // 6a) Get 1 user's balance (GET)

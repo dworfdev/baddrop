@@ -34,15 +34,19 @@ spring:
           no-store: true
           must-revalidate: true
 
-# Configurable Case Math & Dispersion Profiles (Target RTP: 93.00%, 0.00x Total Loss, 0.002 Jackpot)
+# Configurable Case Math & Dispersion Profiles (RTP 93.00% for every case; top-prize chance:
+# PEPE_IRON 2.0%, SHIBA_INU_GOLD 1.0%, DOGE_AMETHYST 0.5%)
+# paytables keys must be the ItemType names: PEPE_IRON, SHIBA_INU_GOLD, DOGE_AMETHYST
 slots:
   admin:
+    # Admin password: used by /api/users/promo and as the X-Admin-Key for /api/admin/**.
+    # MUST be set via ADMIN_PASSWORD in prod; empty means the whole admin area answers 401.
     password: ${ADMIN_PASSWORD:}
   bankroll:
     initial-prize-pool: ${BANKROLL_INITIAL_PRIZE_POOL:0.0000}
   cases:
     paytables:
-      IRON_CRATE:
+      PEPE_IRON:
         - multiplier: 0.15
           probability: 0.200
           label: "Common Scrap (0.15x)"
@@ -61,7 +65,7 @@ slots:
         - multiplier: 5.00
           probability: 0.020
           label: "Cap Prize (5.00x)"
-      SILVER_CRATE:
+      SHIBA_INU_GOLD:
         - multiplier: 0.10
           probability: 0.200
           label: "Common Scrap (0.10x)"
@@ -80,7 +84,7 @@ slots:
         - multiplier: 7.00
           probability: 0.010
           label: "Cap Prize (7.00x)"
-      GOLD_CRATE:
+      DOGE_AMETHYST:
         - multiplier: 0.08
           probability: 0.300
           label: "Broken Junk (0.08x)"
@@ -99,4 +103,3 @@ slots:
         - multiplier: 10.00
           probability: 0.005
           label: "Gold Jackpot (10.00x)"
-

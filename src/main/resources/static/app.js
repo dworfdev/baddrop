@@ -333,9 +333,9 @@
     // TAB 1 & TAB 1B: GAMES & CASES MARKETPLACE INTERACTION
     // =========================================================================
     const CRATE_META = [
-        { key: 'IRON_CRATE', label: 'pepe-iron', tier: 'IRON', price: 2, img: '/imgs/cases/case-pepe-iron.png' },
-        { key: 'SILVER_CRATE', label: 'shiba-inu-gold', tier: 'SILVER', price: 5, img: '/imgs/cases/case-shiba-inu-gold.png' },
-        { key: 'GOLD_CRATE', label: 'doge-amethyst', tier: 'GOLD', price: 11, img: '/imgs/cases/case-doge-amethyst.png' }
+        { key: 'PEPE_IRON', label: 'pepe-iron', tier: 'IRON', price: 2, img: '/imgs/cases/case-pepe-iron.png' },
+        { key: 'SHIBA_INU_GOLD', label: 'shiba-inu-gold', tier: 'SILVER', price: 5, img: '/imgs/cases/case-shiba-inu-gold.png' },
+        { key: 'DOGE_AMETHYST', label: 'doge-amethyst', tier: 'GOLD', price: 11, img: '/imgs/cases/case-doge-amethyst.png' }
     ];
 
     function openCasesMarketplace() {
@@ -455,7 +455,7 @@
     // =========================================================================
 
     function renderInventoryGrid() {
-        const counts = { IRON_CRATE: 0, SILVER_CRATE: 0, GOLD_CRATE: 0 };
+        const counts = { PEPE_IRON: 0, SHIBA_INU_GOLD: 0, DOGE_AMETHYST: 0 };
         (currentUser.items || []).forEach(item => {
             if (counts[item] !== undefined) counts[item]++;
         });
@@ -860,6 +860,8 @@
             const res = await callApi('POST', '/api/users/promo', { promo: code }, false);
             if (res && res.valid) {
                 saveSession();
+                // The admin password is sent by admin.js as the X-Admin-Key header
+                sessionStorage.setItem('adminKey', code);
                 window.location.href = '/admin.html';
             }
         } catch (err) {

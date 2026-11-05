@@ -1,4 +1,5 @@
 (() => {
+    const ADMIN_KEY_STORAGE = 'adminKey';
     let selectedUsername = null;
 
     const userSearchInput = document.getElementById('userSearchInput');
@@ -36,7 +37,10 @@
     async function callApi(method, url, body = null) {
         const options = {
             method,
-            headers: { 'Accept': 'application/json' }
+            headers: {
+                'Accept': 'application/json',
+                'X-Admin-Key': sessionStorage.getItem(ADMIN_KEY_STORAGE) || ''
+            }
         };
         if (body !== null) {
             options.headers['Content-Type'] = 'application/json';
@@ -49,6 +53,13 @@
             data = await response.json();
         } catch (_) {
             data = {};
+        }
+
+        if (response.status === 401) {
+            sessionStorage.removeItem(ADMIN_KEY_STORAGE);
+            showToast('Admin access denied', true);
+            setTimeout(() => { window.location.href = '/'; }, 800);
+            throw new Error('Unauthorized');
         }
 
         if (!response.ok) {
@@ -115,9 +126,9 @@
                 <div class="tx-info">
                     <div class="tx-title">
                         ${showUsernameLink
-                            ? `<span class="tx-user-link" data-open-user="${tx.username}" title="Click to open ${tx.username}">${tx.username}</span>`
-                            : ''
-                        }
+                ? `<span class="tx-user-link" data-open-user="${tx.username}" title="Click to open ${tx.username}">${tx.username}</span>`
+                : ''
+            }
                         <span class="tx-badge ${typeClass}">${tx.type}</span>
                         <span class="tx-badge">${tx.status}</span>
                     </div>
@@ -333,6 +344,7 @@
 
     // 3) Exit button - leaves admin page and returns to logged in user page
     exitAdminBtn.addEventListener('click', () => {
+        sessionStorage.removeItem(ADMIN_KEY_STORAGE);
         window.location.href = '/';
     });
 

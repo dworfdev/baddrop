@@ -409,7 +409,7 @@ public class UserService {
     public UserResponse buyItem(ItemOperationRequest request) {
         User user = authenticateOrFindUser(request.username(), request.password());
         if (request.item() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Item must be provided (IRON_CRATE, SILVER_CRATE, or GOLD_CRATE)");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Item must be provided (PEPE_IRON, SHIBA_INU_GOLD, or DOGE_AMETHYST)");
         }
 
         BigDecimal price = request.item().getPrice();
