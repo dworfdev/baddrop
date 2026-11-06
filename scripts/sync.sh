@@ -1,8 +1,8 @@
-﻿cat << 'EOF' > /opt/baddrop/scripts/sync.sh
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 set -e
 
 JSON_PATH="/opt/baddrop/src/main/resources/initial-cases.json"
+ENV_PATH="/opt/baddrop/.env"
 
 if [ ! -f "$JSON_PATH" ]; then
   echo "Ошибка: $JSON_PATH не найден!"
@@ -15,6 +15,19 @@ python3 - << 'PYEOF'
 import json
 import subprocess
 import os
+
+env_vars = {}
+env_path = "/opt/baddrop/.env"
+if os.path.exists(env_path):
+    with open(env_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                env_vars[k.strip()] = v.strip().strip("'").strip('"')
+
+db_password = env_vars.get("MYSQL_ROOT_PASSWORD") or env_vars.get("DB_PASSWORD") or os.getenv("DB_PASSWORD", "")
+db_name = env_vars.get("MYSQL_DATABASE") or env_vars.get("DB_NAME", "baddrop_db")
 
 with open("/opt/baddrop/src/main/resources/initial-cases.json", "r", encoding="utf-8") as f:
     cases = json.load(f)
@@ -43,11 +56,14 @@ for c in cases:
 
 full_sql = "\n".join(sql_statements)
 
-db_password = os.getenv("DB_PASSWORD", "")
+pass_arg = f"-p{db_password}" if db_password else ""
 cmd = [
     "docker", "compose", "exec", "-T", "mysql",
-    "mysql", "-u", "root", f"-p{db_password}", "baddrop_db"
+    "mysql", "-u", "root"
 ]
+if pass_arg:
+    cmd.append(pass_arg)
+cmd.append(db_name)
 
 proc = subprocess.run(cmd, input=full_sql, text=True, capture_output=True)
 if proc.returncode != 0:
@@ -58,5 +74,3 @@ print(f"Успешно синхронизировано {len(cases)} кейсо�
 PYEOF
 
 echo "=== Синхронизация завершена ==="
-EOF
-chmod +x /opt/baddrop/scripts/sync.sh
