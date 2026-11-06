@@ -4,7 +4,7 @@
     "name": "pepe-iron",
     "price": 2.00,
     "imageUrl": "/imgs/cases/case-pepe-iron.png",
-    "active": false,
+    "active": true,
     "paytable": [
       { "multiplier": 0.15, "probability": 0.200, "label": "Common Scrap (0.15x)" },
       { "multiplier": 0.50, "probability": 0.310, "label": "Low Return (0.50x)" },
@@ -19,7 +19,7 @@
     "name": "shiba-inu-gold",
     "price": 5.00,
     "imageUrl": "/imgs/cases/case-shiba-inu-gold.png",
-    "active": false,
+    "active": true,
     "paytable": [
       { "multiplier": 0.10, "probability": 0.200, "label": "Common Scrap (0.10x)" },
       { "multiplier": 0.45, "probability": 0.340, "label": "Low Return (0.45x)" },
