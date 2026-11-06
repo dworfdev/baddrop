@@ -1,7 +1,5 @@
 package com.dworf.slots_demo.service;
 
-import com.dworf.slots_demo.entity.ItemType;
-
 import java.math.BigDecimal;
 
 /**
@@ -23,12 +21,11 @@ public final class BankrollSplit {
     }
 
     /** Drops with value <= this threshold are "floor" (consolation) items. */
-    public static BigDecimal floorThreshold(ItemType caseType) {
-        return caseType.getPrice().multiply(FLOOR_RATE);
+    public static BigDecimal floorThreshold(BigDecimal casePrice) {
+        return casePrice.multiply(FLOOR_RATE);
     }
 
-    public static boolean isFloorValue(ItemType caseType, BigDecimal value) {
-        return value.compareTo(floorThreshold(caseType)) <= 0;
+    public static boolean isFloorValue(BigDecimal casePrice, BigDecimal value) {
+        return value.compareTo(floorThreshold(casePrice)) <= 0;
     }
 }
-

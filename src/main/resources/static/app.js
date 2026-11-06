@@ -266,6 +266,7 @@
         displayedBalance = 0;
         updateBalanceDisplay(currentUser.balance);
         updateProfileUI();
+        await loadCasesCatalog();
         renderInventoryGrid();
         await syncTopRichLeaderboard();
 
@@ -312,6 +313,7 @@
                     await syncBalanceFromGet();
                     await syncTopRichLeaderboard();
                 } else if (targetId === 'tab-inventory') {
+                    await loadCasesCatalog();
                     await syncBalanceFromGet();
                     await syncItemsFromGet();
                 } else if (targetId === 'tab-profile') {
@@ -330,20 +332,33 @@
     });
 
     // =========================================================================
-    // TAB 1 & TAB 1B: GAMES & CASES MARKETPLACE INTERACTION
+    // TAB 1 & TAB 1B: GAMES & DYNAMIC CASES MARKETPLACE INTERACTION
     // =========================================================================
-    const CRATE_META = [
-        { key: 'PEPE_IRON', label: 'pepe-iron', tier: 'IRON', price: 2, img: '/imgs/cases/case-pepe-iron.png' },
-        { key: 'SHIBA_INU_GOLD', label: 'shiba-inu-gold', tier: 'SILVER', price: 5, img: '/imgs/cases/case-shiba-inu-gold.png' },
-        { key: 'DOGE_AMETHYST', label: 'doge-amethyst', tier: 'GOLD', price: 11, img: '/imgs/cases/case-doge-amethyst.png' }
-    ];
+    let casesCatalog = [];
 
-    function openCasesMarketplace() {
+    async function loadCasesCatalog() {
+        try {
+            const data = await callApi('GET', '/api/cases');
+            if (Array.isArray(data)) {
+                casesCatalog = data.map(c => ({
+                    id: c.id,
+                    slug: c.slug,
+                    name: c.name || c.slug,
+                    price: Number(c.price) || 0,
+                    imageUrl: c.image_url || c.imageUrl || '/imgs/cases/case-pepe-iron.png',
+                    createdAt: c.created_at || c.createdAt
+                }));
+            }
+        } catch (_) {}
+    }
+
+    async function openCasesMarketplace() {
         document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
         const casesTab = document.getElementById('tab-cases');
         if (casesTab) {
             casesTab.classList.add('active');
         }
+        await loadCasesCatalog();
         renderCasesMarketplaceGrid();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -379,14 +394,14 @@
         const searchQuery = casesSearchInput.value.trim().toLowerCase();
         const activeFilter = CASES_FILTER_MODES[currentCasesFilterIdx];
 
-        let list = CRATE_META.filter(crate => {
+        let list = casesCatalog.filter(crate => {
             if (activeFilter.code === 'AFFORDABLE' && currentUser.balance < crate.price) {
                 return false;
             }
             if (
                 searchQuery &&
-                !crate.label.toLowerCase().includes(searchQuery) &&
-                !crate.key.toLowerCase().includes(searchQuery)
+                !crate.name.toLowerCase().includes(searchQuery) &&
+                !crate.slug.toLowerCase().includes(searchQuery)
             ) {
                 return false;
             }
@@ -408,17 +423,17 @@
         list.forEach(crate => {
             const card = document.createElement('div');
             card.className = 'inventory-case-card';
-            const displayLabel = crate.label;
+            const displayLabel = crate.name;
 
             card.innerHTML = `
                 <div class="case-image-slot">
-                    <img src="${crate.img}" alt="${displayLabel}" class="case-art-img" />
+                    <img src="${crate.imageUrl}" alt="${displayLabel}" class="case-art-img" />
                 </div>
                 <div class="case-bottom-footer">
                     <div class="case-title">${displayLabel}</div>
                     <div class="case-buy-row">
                         <span class="case-price">$${crate.price}</span>
-                        <button type="button" class="case-buy-btn" data-buy-crate="${crate.key}">BUY</button>
+                        <button type="button" class="case-buy-btn" data-buy-crate="${crate.slug}">BUY</button>
                     </div>
                 </div>
             `;
@@ -428,7 +443,7 @@
                     await callApi('POST', '/api/users/items/buy', {
                         username: currentUser.username,
                         password: currentUser.password,
-                        item: crate.key
+                        item: crate.slug
                     });
                     await syncBalanceFromGet();
                     await syncItemsFromGet();
@@ -455,22 +470,22 @@
     // =========================================================================
 
     function renderInventoryGrid() {
-        const counts = { PEPE_IRON: 0, SHIBA_INU_GOLD: 0, DOGE_AMETHYST: 0 };
-        (currentUser.items || []).forEach(item => {
-            if (counts[item] !== undefined) counts[item]++;
+        const counts = {};
+        (currentUser.items || []).forEach(slug => {
+            counts[slug] = (counts[slug] || 0) + 1;
         });
 
         const searchQuery = inventorySearchInput.value.trim().toLowerCase();
         const activeFilter = INVENTORY_FILTER_MODES[currentFilterIdx];
 
-        let filtered = CRATE_META.filter(crate => {
-            const count = counts[crate.key] || 0;
+        let filtered = casesCatalog.filter(crate => {
+            const count = counts[crate.slug] || 0;
             // Only display cases that the user actually owns
             if (count <= 0) return false;
             if (
                 searchQuery &&
-                !crate.label.toLowerCase().includes(searchQuery) &&
-                !crate.key.toLowerCase().includes(searchQuery)
+                !crate.name.toLowerCase().includes(searchQuery) &&
+                !crate.slug.toLowerCase().includes(searchQuery)
             ) {
                 return false;
             }
@@ -492,16 +507,16 @@
         filtered.forEach(crate => {
             const card = document.createElement('div');
             card.className = 'inventory-case-card';
-            const displayLabel = crate.label;
+            const displayLabel = crate.name;
             card.innerHTML = `
                 <div class="case-image-slot">
-                    <img src="${crate.img}" alt="${displayLabel}" class="case-art-img" />
+                    <img src="${crate.imageUrl}" alt="${displayLabel}" class="case-art-img" />
                 </div>
                 <div class="case-bottom-footer">
                     <div class="case-title">${displayLabel}</div>
                     <div class="case-buy-row">
-                        <span class="case-count-inline">x${counts[crate.key]}</span>
-                        <button type="button" class="case-buy-btn" data-open-crate="${crate.key}">Open</button>
+                        <span class="case-count-inline">x${counts[crate.slug]}</span>
+                        <button type="button" class="case-buy-btn" data-open-crate="${crate.slug}">Open</button>
                     </div>
                 </div>
             `;
@@ -526,7 +541,7 @@
         currentTapCount = 0;
         isResolvingCaseOpen = false;
 
-        caseTapImage.src = crate.img;
+        caseTapImage.src = crate.imageUrl;
         caseTapImage.classList.remove('shake');
         caseTapStage.classList.add('active');
         caseOpeningOverlay.classList.remove('fading-out');
@@ -555,7 +570,7 @@
                     callApi('POST', '/api/users/items/open', {
                         username: currentUser.username,
                         password: currentUser.password,
-                        item: crateToOpen.key
+                        item: crateToOpen.slug
                     }),
                     new Promise(r => setTimeout(r, 220))
                 ]);

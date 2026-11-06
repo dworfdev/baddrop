@@ -5,6 +5,7 @@ import com.dworf.slots_demo.controller.AdminController;
 import com.dworf.slots_demo.dto.AdminUserOverviewResponse;
 import com.dworf.slots_demo.dto.BalanceOperationRequest;
 import com.dworf.slots_demo.dto.BalanceResponse;
+import com.dworf.slots_demo.dto.CaseResponse;
 import com.dworf.slots_demo.dto.ChangePasswordRequest;
 import com.dworf.slots_demo.dto.ConfirmDepositRequest;
 import com.dworf.slots_demo.dto.DepositSessionResponse;
@@ -14,10 +15,10 @@ import com.dworf.slots_demo.dto.OpenCaseResponse;
 import com.dworf.slots_demo.dto.TransactionResponse;
 import com.dworf.slots_demo.dto.UserCredentialsRequest;
 import com.dworf.slots_demo.dto.UserResponse;
-import com.dworf.slots_demo.entity.ItemType;
 import com.dworf.slots_demo.entity.TransactionStatus;
 import com.dworf.slots_demo.entity.TransactionType;
 import com.dworf.slots_demo.service.CaseOpenerEngine;
+import com.dworf.slots_demo.service.CaseOpeningService;
 import com.dworf.slots_demo.service.UserService;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
@@ -326,18 +327,18 @@ class SlotsDemoApplicationTests {
 
     @Test
     @Order(6)
-    @DisplayName("3.1 Case Marketplace: ItemType naming (PEPE_IRON, SHIBA_INU_GOLD, DOGE_AMETHYST) and purchases")
-    void testCaseMarketplaceAndItemTypeNormalization() {
-        // Verify enum constants and string parser
-        assertEquals(ItemType.PEPE_IRON, ItemType.fromString("PEPE_IRON"));
-        assertEquals(ItemType.PEPE_IRON, ItemType.fromString("pepe-iron"));
-        assertEquals(ItemType.PEPE_IRON, ItemType.fromString("pepe_iron"));
-        assertEquals(ItemType.SHIBA_INU_GOLD, ItemType.fromString("shiba-inu-gold"));
-        assertEquals(ItemType.DOGE_AMETHYST, ItemType.fromString("doge-amethyst"));
+    @DisplayName("3.1 Case Marketplace: Database-backed active cases (GET /api/cases) & String slug purchases")
+    void testCaseMarketplaceAndSlugPurchases() {
+        // Verify prepopulated active cases ordered by created_at DESC
+        List<CaseResponse> activeCases = userService.getActiveCases();
+        assertEquals(3, activeCases.size());
+        assertEquals("doge-amethyst", activeCases.get(0).slug());
+        assertEquals("shiba-inu-gold", activeCases.get(1).slug());
+        assertEquals("pepe-iron", activeCases.get(2).slug());
 
-        assertEquals(0, new BigDecimal("2.00").compareTo(ItemType.PEPE_IRON.getPrice()));
-        assertEquals(0, new BigDecimal("5.00").compareTo(ItemType.SHIBA_INU_GOLD.getPrice()));
-        assertEquals(0, new BigDecimal("11.00").compareTo(ItemType.DOGE_AMETHYST.getPrice()));
+        assertEquals(0, new BigDecimal("11.00").compareTo(activeCases.get(0).price()));
+        assertEquals(0, new BigDecimal("5.00").compareTo(activeCases.get(1).price()));
+        assertEquals(0, new BigDecimal("2.00").compareTo(activeCases.get(2).price()));
 
         // Create player and deposit $50.00
         String username = "case_buyer";
@@ -349,23 +350,23 @@ class SlotsDemoApplicationTests {
         userService.confirmDepositSent(new ConfirmDepositRequest(username, pass, session.txHash()));
         userService.approveTransaction(session.txHash());
 
-        // Buy one of each case: PEPE_IRON ($2), SHIBA_INU_GOLD ($5), DOGE_AMETHYST ($11)
-        userService.buyItem(new ItemOperationRequest(username, pass, ItemType.PEPE_IRON));
-        userService.buyItem(new ItemOperationRequest(username, pass, ItemType.SHIBA_INU_GOLD));
-        userService.buyItem(new ItemOperationRequest(username, pass, ItemType.DOGE_AMETHYST));
+        // Buy one of each case by slug: pepe-iron ($2), shiba-inu-gold ($5), doge-amethyst ($11)
+        userService.buyItem(new ItemOperationRequest(username, pass, CaseOpeningService.SLUG_PEPE_IRON));
+        userService.buyItem(new ItemOperationRequest(username, pass, CaseOpeningService.SLUG_SHIBA_INU_GOLD));
+        userService.buyItem(new ItemOperationRequest(username, pass, CaseOpeningService.SLUG_DOGE_AMETHYST));
 
         // Balance check: 50.00 - (2.00 + 5.00 + 11.00) = 32.00
         BalanceResponse balance = userService.getUserBalance(username, pass);
         assertEquals(0, new BigDecimal("32.00").compareTo(balance.balance()));
 
-        // Inventory check
+        // Inventory check: stores String slugs
         ItemsResponse items = userService.getUserItems(username, pass);
-        assertEquals(List.of(ItemType.PEPE_IRON, ItemType.SHIBA_INU_GOLD, ItemType.DOGE_AMETHYST), items.items());
+        assertEquals(List.of("pepe-iron", "shiba-inu-gold", "doge-amethyst"), items.items());
 
         // Disallow purchase if insufficient balance
         assertThrows(ResponseStatusException.class, () -> {
             for (int i = 0; i < 10; i++) {
-                userService.buyItem(new ItemOperationRequest(username, pass, ItemType.DOGE_AMETHYST));
+                userService.buyItem(new ItemOperationRequest(username, pass, CaseOpeningService.SLUG_DOGE_AMETHYST));
             }
         });
 
@@ -375,21 +376,21 @@ class SlotsDemoApplicationTests {
 
     @Test
     @Order(7)
-    @DisplayName("3.2 Math Engine Validation and Case Unboxing payout flow")
+    @DisplayName("3.2 Math Engine Validation (JSON Paytables) and Case Unboxing payout flow")
     void testCaseMathStatsAndUnboxingPayout() {
-        // Validate configured paytables for all 3 cases
+        // Validate configured JSON paytables for all 3 database cases
         List<CaseOpenerEngine.CaseMathStats> mathStats = userService.getAllCasesMathStats();
         assertEquals(3, mathStats.size());
 
         for (CaseOpenerEngine.CaseMathStats stat : mathStats) {
             assertEquals(1.0, stat.totalProbability(), 0.0001,
-                    "Sum of probabilities must equal 1.0 for " + stat.itemType());
+                    "Sum of probabilities must equal 1.0 for " + stat.slug());
             assertTrue(stat.rtpPercent() >= 92.0 && stat.rtpPercent() <= 94.0,
-                    "RTP must be configured near 93.0% for " + stat.itemType());
+                    "RTP must be configured near 93.0% for " + stat.slug());
             assertTrue(stat.variance() > 0.0, "Variance must be positive");
         }
 
-        // Setup player with PEPE_IRON in inventory
+        // Setup player with pepe-iron in inventory
         String username = "unboxer";
         String pass = "unbox_pass";
         userService.createUser(new UserCredentialsRequest(username, pass));
@@ -399,14 +400,14 @@ class SlotsDemoApplicationTests {
         userService.confirmDepositSent(new ConfirmDepositRequest(username, pass, session.txHash()));
         userService.approveTransaction(session.txHash());
 
-        userService.buyItem(new ItemOperationRequest(username, pass, ItemType.PEPE_IRON));
+        userService.buyItem(new ItemOperationRequest(username, pass, CaseOpeningService.SLUG_PEPE_IRON));
         // Balance before open: 10 - 2 = 8.00
 
-        // Unbox PEPE_IRON
+        // Unbox pepe-iron
         OpenCaseResponse openResponse = userService.openCase(
-                new ItemOperationRequest(username, pass, ItemType.PEPE_IRON)
+                new ItemOperationRequest(username, pass, CaseOpeningService.SLUG_PEPE_IRON)
         );
-        assertEquals(ItemType.PEPE_IRON, openResponse.openedCase());
+        assertEquals("pepe-iron", openResponse.openedCase());
         assertNotNull(openResponse.wonAmount());
         assertTrue(openResponse.wonAmount().compareTo(BigDecimal.ZERO) >= 0);
 
@@ -419,7 +420,7 @@ class SlotsDemoApplicationTests {
 
         // Opening again without owning case throws 400
         assertThrows(ResponseStatusException.class, () ->
-                userService.openCase(new ItemOperationRequest(username, pass, ItemType.PEPE_IRON))
+                userService.openCase(new ItemOperationRequest(username, pass, CaseOpeningService.SLUG_PEPE_IRON))
         );
 
         // Cleanup

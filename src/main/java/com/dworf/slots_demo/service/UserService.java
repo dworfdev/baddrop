@@ -4,6 +4,7 @@ import com.dworf.slots_demo.dto.AdminUserOverviewResponse;
 import com.dworf.slots_demo.dto.BalanceOperationRequest;
 import com.dworf.slots_demo.dto.BalanceResponse;
 import com.dworf.slots_demo.dto.BankrollResponse;
+import com.dworf.slots_demo.dto.CaseResponse;
 import com.dworf.slots_demo.dto.ChangePasswordRequest;
 import com.dworf.slots_demo.dto.ConfirmDepositRequest;
 import com.dworf.slots_demo.dto.DepositSessionResponse;
@@ -14,7 +15,6 @@ import com.dworf.slots_demo.dto.TransactionResponse;
 import com.dworf.slots_demo.dto.UserCredentialsRequest;
 import com.dworf.slots_demo.dto.UserResponse;
 import com.dworf.slots_demo.entity.BalanceTransaction;
-import com.dworf.slots_demo.entity.ItemType;
 import com.dworf.slots_demo.entity.TransactionStatus;
 import com.dworf.slots_demo.entity.TransactionType;
 import com.dworf.slots_demo.entity.User;
@@ -28,7 +28,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -408,69 +407,34 @@ public class UserService {
     @Transactional
     public UserResponse buyItem(ItemOperationRequest request) {
         User user = authenticateOrFindUser(request.username(), request.password());
-        if (request.item() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Item must be provided (PEPE_IRON, SHIBA_INU_GOLD, or DOGE_AMETHYST)");
+        if (request.item() == null || request.item().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Case slug must be provided");
         }
-
-        BigDecimal price = request.item().getPrice();
-        if (user.getBalance().compareTo(price) < 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Insufficient funds to buy " + request.item() + " ($" + price + "). Current balance: $" + user.getBalance()
-            );
-        }
-
-        user.setBalance(user.getBalance().subtract(price));
-        user.getItems().add(request.item());
-        return UserResponse.fromEntity(userRepository.save(user));
+        return caseOpeningService.buyCase(user, request.item());
     }
 
     /**
      * Opens one instance of the requested case from the player's inventory using the
-     * Low-Variance CDF Mathematical Engine (CaseOpenerEngine) and immediately credits
+     * database-backed CaseOpeningService & CaseOpenerEngine and immediately credits
      * the won USDT amount to the player's balance.
      */
     @Transactional
     public OpenCaseResponse openCase(ItemOperationRequest request) {
         User user = authenticateOrFindUser(request.username(), request.password());
-        if (request.item() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Case item must be provided");
+        if (request.item() == null || request.item().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Case slug must be provided");
         }
-
-        boolean removed = user.getItems().remove(request.item());
-        if (!removed) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "You do not own any " + request.item() + " in your inventory"
-            );
-        }
-
-        CaseOpenerEngine.Outcome outcome = caseOpeningService.open(request.item()).outcome();
-        CaseOpenerEngine.CaseMathStats stats = caseOpenerEngine.calculateStats(request.item());
-        boolean isJackpot = caseOpenerEngine.isMaxWin(request.item(), outcome.winAmount());
-
-        user.setBalance(user.getBalance().add(outcome.winAmount()));
-        User savedUser = userRepository.save(user);
-
-        return new OpenCaseResponse(
-                savedUser.getUsername(),
-                request.item(),
-                request.item().getPrice(),
-                outcome.winAmount(),
-                isJackpot,
-                outcome.tierLabel(),
-                savedUser.getBalance(),
-                List.copyOf(savedUser.getItems()),
-                stats.expectedValue(),
-                stats.rtpPercent(),
-                stats.variance()
-        );
+        return caseOpeningService.openCaseForUser(user, request.item());
     }
 
+    @Transactional(readOnly = true)
+    public List<CaseResponse> getActiveCases() {
+        return caseOpeningService.getActiveCases();
+    }
+
+    @Transactional(readOnly = true)
     public List<CaseOpenerEngine.CaseMathStats> getAllCasesMathStats() {
-        return Arrays.stream(ItemType.values())
-                .map(caseOpenerEngine::calculateStats)
-                .toList();
+        return caseOpeningService.getAllCasesMathStats();
     }
 
     public BankrollResponse getBankroll() {

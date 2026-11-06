@@ -1,6 +1,5 @@
 package com.dworf.slots_demo.dto;
 
-import com.dworf.slots_demo.entity.ItemType;
 import com.dworf.slots_demo.entity.User;
 
 import java.math.BigDecimal;
@@ -10,7 +9,7 @@ public record AdminUserOverviewResponse(
         Long id,
         String username,
         BigDecimal balance,
-        List<ItemType> items,
+        List<String> items,
         List<TransactionResponse> pendingTransactions,
         List<TransactionResponse> transactionHistory
 ) {
@@ -29,4 +28,3 @@ public record AdminUserOverviewResponse(
         );
     }
 }
-

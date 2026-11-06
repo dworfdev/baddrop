@@ -2,6 +2,7 @@ package com.dworf.slots_demo.controller;
 
 import com.dworf.slots_demo.dto.BalanceOperationRequest;
 import com.dworf.slots_demo.dto.BalanceResponse;
+import com.dworf.slots_demo.dto.CaseResponse;
 import com.dworf.slots_demo.dto.ChangePasswordRequest;
 import com.dworf.slots_demo.dto.ConfirmDepositRequest;
 import com.dworf.slots_demo.dto.DepositSessionResponse;
@@ -11,7 +12,6 @@ import com.dworf.slots_demo.dto.OpenCaseResponse;
 import com.dworf.slots_demo.dto.PromoRequest;
 import com.dworf.slots_demo.dto.UserCredentialsRequest;
 import com.dworf.slots_demo.dto.UserResponse;
-import com.dworf.slots_demo.entity.ItemType;
 import com.dworf.slots_demo.service.CaseOpenerEngine;
 import com.dworf.slots_demo.service.UserService;
 import org.springframework.http.HttpStatus;
@@ -122,7 +122,13 @@ public class UserController {
         return userService.openCase(request);
     }
 
-    // 3c) Get mathematical specification (PMF, EV, RTP %, House Edge %, Variance, Paytable) for all cases
+    // 3c-1) Get all active cases ordered by created_at DESC
+    @GetMapping("/api/cases")
+    public List<CaseResponse> getActiveCases() {
+        return userService.getActiveCases();
+    }
+
+    // 3c-2) Get mathematical specification (PMF, EV, RTP %, House Edge %, Variance, Paytable) for all cases
     @GetMapping("/api/cases/math")
     public List<CaseOpenerEngine.CaseMathStats> getCasesMathStats() {
         return userService.getAllCasesMathStats();

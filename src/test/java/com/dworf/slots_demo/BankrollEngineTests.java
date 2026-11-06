@@ -1,7 +1,7 @@
 package com.dworf.slots_demo;
 
 import com.dworf.slots_demo.dto.BankrollResponse;
-import com.dworf.slots_demo.entity.ItemType;
+import com.dworf.slots_demo.entity.CaseEntity;
 import com.dworf.slots_demo.service.BankrollSplit;
 import com.dworf.slots_demo.service.CaseOpenerEngine;
 import com.dworf.slots_demo.service.CaseOpeningService;
@@ -17,7 +17,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -27,18 +27,20 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Split-Inflow Dynamic Bankroll Engine & Ephemeral Floor Buffer Test Suite.
- * Systematized into 5 functional areas:
+ * Split-Inflow Dynamic Bankroll Engine & Ephemeral Floor Buffer Test Suite (Database-Backed Cases).
+ * Systematized into 6 functional areas:
  * <ol>
  *     <li>Bankroll Singleton State & Exposure (DB Row Seeding, Profit Pool, House Profit, Policy Rate 33%)</li>
  *     <li>Turn-Zero Launch Safety (Zero debt risk from spin 0; wins strictly capped at C * 0.33 when pool is empty)</li>
  *     <li>Dynamic Pre-Roll Filtering (Pruning unaffordable items from the active catalogue before rolling)</li>
  *     <li>Conservation of Funds & Exact 3-Way Split (ΔHouse == 7% Cost, ΔPool + Payouts == 93% Cost across 3,000 spins)</li>
  *     <li>High-Concurrency Locking (Pessimistic write locking prevents race conditions and lost updates)</li>
+ *     <li>Atomic Bankroll Reset (Protected reset of Prize Pool and House Profit to 0.0000)</li>
  * </ol>
  */
 @SpringBootTest
@@ -81,22 +83,26 @@ class BankrollEngineTests {
     @Order(2)
     @DisplayName("2.1 Turn-Zero Launch Safety: When PrizePool = 0, MaxAllowedDrop = C * 0.33, preventing deficit")
     void testTurnZeroLaunchSafetyGuaranteesSolvency() {
-        for (ItemType type : ItemType.values()) {
-            BigDecimal cost = type.getPrice();
+        List<CaseEntity> cases = caseOpeningService.getAllActiveCaseEntities();
+        assertFalse(cases.isEmpty(), "Default active cases must be seeded in database");
+
+        for (CaseEntity caseEntity : cases) {
+            BigDecimal cost = caseEntity.getPrice();
             BigDecimal floorBuffer = cost.multiply(BankrollSplit.FLOOR_RATE);
             BigDecimal emptyPool = BigDecimal.ZERO;
             BigDecimal maxAllowedDrop = emptyPool.add(floorBuffer);
+            List<CaseOpenerEngine.Outcome> paytable = caseOpenerEngine.parseOutcomes(cost, caseEntity.getPaytableJson());
 
             // Simulate 1,000 rolls with an empty treasury
             for (int i = 0; i < 1000; i++) {
-                CaseOpenerEngine.Outcome outcome = caseOpenerEngine.drawOutcome(type, maxAllowedDrop);
+                CaseOpenerEngine.Outcome outcome = caseOpenerEngine.drawOutcome(paytable, maxAllowedDrop);
 
                 // Win amount must strictly fit within the ephemeral floor buffer
                 assertTrue(outcome.winAmount().compareTo(floorBuffer) <= 0,
-                        "At turn zero, drop " + outcome.winAmount() + " exceeded floorBuffer " + floorBuffer + " for " + type);
+                        "At turn zero, drop " + outcome.winAmount() + " exceeded floorBuffer " + floorBuffer + " for " + caseEntity.getSlug());
 
                 // Must be classified as a floor/consolation drop
-                assertTrue(BankrollSplit.isFloorValue(type, outcome.winAmount()),
+                assertTrue(BankrollSplit.isFloorValue(cost, outcome.winAmount()),
                         "Drop must be a floor item during turn zero");
             }
         }
@@ -110,14 +116,17 @@ class BankrollEngineTests {
     @Order(3)
     @DisplayName("3.1 Pre-Roll Filtering: Items exceeding MaxAllowedDrop (PrizePool + FloorBuffer) are eliminated")
     void testDropsAreNeverDrawnAboveMaxAllowedDrop() {
-        for (ItemType type : ItemType.values()) {
+        List<CaseEntity> cases = caseOpeningService.getAllActiveCaseEntities();
+        for (CaseEntity caseEntity : cases) {
+            BigDecimal cost = caseEntity.getPrice();
             // Test with an artificial low budget: 50% of crate price
-            BigDecimal restrictedMax = type.getPrice().multiply(new BigDecimal("0.50"));
+            BigDecimal restrictedMax = cost.multiply(new BigDecimal("0.50"));
+            List<CaseOpenerEngine.Outcome> paytable = caseOpenerEngine.parseOutcomes(cost, caseEntity.getPaytableJson());
 
             for (int i = 0; i < 2000; i++) {
-                CaseOpenerEngine.Outcome outcome = caseOpenerEngine.drawOutcome(type, restrictedMax);
+                CaseOpenerEngine.Outcome outcome = caseOpenerEngine.drawOutcome(paytable, restrictedMax);
                 assertTrue(outcome.winAmount().compareTo(restrictedMax) <= 0,
-                        "Drop " + outcome.winAmount() + " exceeded restricted maximum " + restrictedMax + " for " + type);
+                        "Drop " + outcome.winAmount() + " exceeded restricted maximum " + restrictedMax + " for " + caseEntity.getSlug());
             }
         }
     }
@@ -135,37 +144,47 @@ class BankrollEngineTests {
 
         BigDecimal totalCost = BigDecimal.ZERO;
         BigDecimal totalPaid = BigDecimal.ZERO;
-        Map<ItemType, BigDecimal> paidByCase = new EnumMap<>(ItemType.class);
-        Map<ItemType, BigDecimal> costByCase = new EnumMap<>(ItemType.class);
+        Map<String, BigDecimal> paidByCase = new LinkedHashMap<>();
+        Map<String, BigDecimal> costByCase = new LinkedHashMap<>();
 
-        // Spin each case: PEPE_IRON ($2), SHIBA_INU_GOLD ($5), DOGE_AMETHYST ($11)
-        for (ItemType type : ItemType.values()) {
+        List<CaseEntity> cases = caseOpeningService.getAllActiveCaseEntities();
+        for (CaseEntity caseEntity : cases) {
+            String slug = caseEntity.getSlug();
+            BigDecimal price = caseEntity.getPrice();
+
             for (int i = 0; i < spinsPerCase; i++) {
-                CaseOpeningService.SpinResult spin = caseOpeningService.open(type);
+                CaseOpeningService.SpinResult spin = caseOpeningService.open(slug);
                 BigDecimal won = spin.outcome().winAmount();
 
                 // Floor classification must strictly adhere to the 33% threshold
-                assertEquals(won.compareTo(BankrollSplit.floorThreshold(type)) <= 0, spin.floorItem());
+                assertEquals(won.compareTo(BankrollSplit.floorThreshold(price)) <= 0, spin.floorItem());
 
                 // Invariant: Prize pool must never dip below 0
                 BankrollResponse current = caseOpeningService.getBankroll();
                 assertTrue(current.profitPool().signum() >= 0, "Prize pool went negative during gameplay");
 
-                totalCost = totalCost.add(type.getPrice());
+                totalCost = totalCost.add(price);
                 totalPaid = totalPaid.add(won);
-                paidByCase.merge(type, won, BigDecimal::add);
-                costByCase.merge(type, type.getPrice(), BigDecimal::add);
+                paidByCase.merge(slug, won, BigDecimal::add);
+                costByCase.merge(slug, price, BigDecimal::add);
             }
         }
 
         BankrollResponse after = caseOpeningService.getBankroll();
         assertExactAccountingIdentity(before, after, totalCost, totalPaid);
 
-        paidByCase.forEach((type, paid) -> System.out.printf(
-                "[BANKROLL-TEST] %-15s effective RTP over %d spins = %.2f%% (configured target %.2f%%)%n",
-                type, spinsPerCase,
-                paid.doubleValue() / costByCase.get(type).doubleValue() * 100.0,
-                caseOpenerEngine.calculateStats(type).rtpPercent()));
+        for (CaseEntity caseEntity : cases) {
+            String slug = caseEntity.getSlug();
+            BigDecimal paid = paidByCase.get(slug);
+            List<CaseOpenerEngine.Outcome> paytable = caseOpenerEngine.parseOutcomes(caseEntity.getPrice(), caseEntity.getPaytableJson());
+            CaseOpenerEngine.CaseMathStats stats = caseOpenerEngine.calculateStats(slug, caseEntity.getPrice(), paytable);
+            System.out.printf(
+                    "[BANKROLL-TEST] %-15s effective RTP over %d spins = %.2f%% (configured target %.2f%%)%n",
+                    slug, spinsPerCase,
+                    paid.doubleValue() / costByCase.get(slug).doubleValue() * 100.0,
+                    stats.rtpPercent()
+            );
+        }
         System.out.printf("[BANKROLL-TEST] profitPool %s -> %s | floorBufferRate %s | houseProfit %s -> %s%n",
                 before.profitPool(), after.profitPool(),
                 after.floorBufferRate(),
@@ -183,7 +202,7 @@ class BankrollEngineTests {
         BankrollResponse before = caseOpeningService.getBankroll();
         int threads = 8;
         int spinsPerThread = 150;
-        ItemType[] types = ItemType.values();
+        List<CaseEntity> cases = caseOpeningService.getAllActiveCaseEntities();
 
         ExecutorService executor = Executors.newFixedThreadPool(threads);
         CountDownLatch ready = new CountDownLatch(threads);
@@ -191,15 +210,15 @@ class BankrollEngineTests {
         List<Future<BigDecimal[]>> futures = new ArrayList<>();
 
         for (int t = 0; t < threads; t++) {
-            final ItemType type = types[t % types.length];
+            final CaseEntity caseEntity = cases.get(t % cases.size());
             futures.add(executor.submit(() -> {
                 ready.countDown();
                 go.await();
                 BigDecimal cost = BigDecimal.ZERO;
                 BigDecimal paid = BigDecimal.ZERO;
                 for (int i = 0; i < spinsPerThread; i++) {
-                    paid = paid.add(caseOpeningService.open(type).outcome().winAmount());
-                    cost = cost.add(type.getPrice());
+                    paid = paid.add(caseOpeningService.open(caseEntity.getSlug()).outcome().winAmount());
+                    cost = cost.add(caseEntity.getPrice());
                 }
                 return new BigDecimal[]{cost, paid};
             }));
@@ -237,7 +256,7 @@ class BankrollEngineTests {
     @DisplayName("6.1 Atomic Bankroll Reset: Resets Prize Pool and House Profit to 0.0000 under lock")
     void testAtomicBankrollResetClearsMetrics() {
         // Spin to accrue non-zero house profit
-        caseOpeningService.open(ItemType.PEPE_IRON);
+        caseOpeningService.open(CaseOpeningService.SLUG_PEPE_IRON);
 
         BankrollResponse beforeReset = caseOpeningService.getBankroll();
         assertTrue(beforeReset.houseProfit().signum() > 0, "House profit should be > 0 after opening a case");

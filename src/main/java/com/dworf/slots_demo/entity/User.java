@@ -4,8 +4,6 @@ import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -36,9 +34,8 @@ public class User {
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_items", joinColumns = @JoinColumn(name = "user_id"))
-    @Enumerated(EnumType.STRING)
-    @Column(name = "item_type", nullable = false)
-    private List<ItemType> items = new ArrayList<>();
+    @Column(name = "item_slug", nullable = false, length = 64)
+    private List<String> items = new ArrayList<>();
 
     public User() {
     }
@@ -78,12 +75,11 @@ public class User {
         this.balance = balance;
     }
 
-    public List<ItemType> getItems() {
+    public List<String> getItems() {
         return items;
     }
 
-    public void setItems(List<ItemType> items) {
+    public void setItems(List<String> items) {
         this.items = items;
     }
 }
-
