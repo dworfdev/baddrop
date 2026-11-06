@@ -345,8 +345,8 @@
                     slug: c.slug,
                     name: c.name || c.slug,
                     price: Number(c.price) || 0,
-                    imageUrl: c.image_url || c.imageUrl || '/imgs/cases/case-pepe-iron.png',
-                    createdAt: c.created_at || c.createdAt
+                    imageUrl: c.imageUrl || c.image_url || '/imgs/cases/case-fallback.png',
+                    createdAt: c.createdAt || c.created_at
                 }));
             }
         } catch (_) {}

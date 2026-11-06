@@ -20,51 +20,14 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Instant;
 import java.util.List;
 
 /**
  * Split-Inflow Dynamic Bankroll Engine & Database-Backed Case Service.
+ * Handles buying, opening, and bankroll coordination with {@link CaseOpenerEngine}.
  */
 @Service
 public class CaseOpeningService {
-
-    public static final String SLUG_PEPE_IRON = "pepe-iron";
-    public static final String SLUG_SHIBA_INU_GOLD = "shiba-inu-gold";
-    public static final String SLUG_DOGE_AMETHYST = "doge-amethyst";
-
-    private static final String DEFAULT_PEPE_IRON_PAYTABLE = """
-            [
-              {"multiplier":0.15,"probability":0.200,"label":"Common Scrap (0.15x)"},
-              {"multiplier":0.50,"probability":0.310,"label":"Low Return (0.50x)"},
-              {"multiplier":0.90,"probability":0.230,"label":"Near Even (0.90x)"},
-              {"multiplier":1.50,"probability":0.180,"label":"Small Win (1.50x)"},
-              {"multiplier":2.80,"probability":0.060,"label":"Nice Win (2.80x)"},
-              {"multiplier":5.00,"probability":0.020,"label":"Cap Prize (5.00x)"}
-            ]
-            """;
-
-    private static final String DEFAULT_SHIBA_INU_GOLD_PAYTABLE = """
-            [
-              {"multiplier":0.10,"probability":0.200,"label":"Common Scrap (0.10x)"},
-              {"multiplier":0.45,"probability":0.340,"label":"Low Return (0.45x)"},
-              {"multiplier":0.85,"probability":0.240,"label":"Near Even (0.85x)"},
-              {"multiplier":1.70,"probability":0.140,"label":"Decent Win (1.70x)"},
-              {"multiplier":3.50,"probability":0.070,"label":"Big Win (3.50x)"},
-              {"multiplier":7.00,"probability":0.010,"label":"Cap Prize (7.00x)"}
-            ]
-            """;
-
-    private static final String DEFAULT_DOGE_AMETHYST_PAYTABLE = """
-            [
-              {"multiplier":0.08,"probability":0.300,"label":"Broken Junk (0.08x)"},
-              {"multiplier":0.40,"probability":0.240,"label":"Low Return (0.40x)"},
-              {"multiplier":0.80,"probability":0.250,"label":"Near Even (0.80x)"},
-              {"multiplier":2.00,"probability":0.145,"label":"Great Win (2.00x)"},
-              {"multiplier":4.50,"probability":0.060,"label":"Epic Win (4.50x)"},
-              {"multiplier":10.00,"probability":0.005,"label":"Gold Jackpot (10.00x)"}
-            ]
-            """;
 
     private static final int MONEY_SCALE = 4;
 
@@ -91,13 +54,8 @@ public class CaseOpeningService {
         this.initialPrizePool = initialPrizePool;
     }
 
-    /** Seeds the singleton bankroll row (id = 1) and the 3 default cases if not yet present. */
+    /** Seeds the singleton bankroll row (id = 1) once; safe if several instances start together. */
     @PostConstruct
-    void initBankrollAndCases() {
-        ensureBankrollRow();
-        ensureDefaultCasesSeeded();
-    }
-
     void ensureBankrollRow() {
         if (bankrollRepository.existsById(SystemBankroll.SINGLETON_ID)) {
             return;
@@ -106,56 +64,6 @@ public class CaseOpeningService {
             bankrollRepository.saveAndFlush(new SystemBankroll(initialPrizePool));
         } catch (DataIntegrityViolationException alreadySeededByAnotherInstance) {
             // row exists now - nothing to do
-        }
-    }
-
-    void ensureDefaultCasesSeeded() {
-        Instant baseTime = Instant.now();
-        seedCaseIfMissing(
-                SLUG_PEPE_IRON,
-                "pepe-iron",
-                new BigDecimal("2.00"),
-                "/imgs/cases/case-pepe-iron.png",
-                DEFAULT_PEPE_IRON_PAYTABLE.trim(),
-                baseTime.minusSeconds(2)
-        );
-        seedCaseIfMissing(
-                SLUG_SHIBA_INU_GOLD,
-                "shiba-inu-gold",
-                new BigDecimal("5.00"),
-                "/imgs/cases/case-shiba-inu-gold.png",
-                DEFAULT_SHIBA_INU_GOLD_PAYTABLE.trim(),
-                baseTime.minusSeconds(1)
-        );
-        seedCaseIfMissing(
-                SLUG_DOGE_AMETHYST,
-                "doge-amethyst",
-                new BigDecimal("11.00"),
-                "/imgs/cases/case-doge-amethyst.png",
-                DEFAULT_DOGE_AMETHYST_PAYTABLE.trim(),
-                baseTime
-        );
-    }
-
-    private void seedCaseIfMissing(
-            String slug,
-            String name,
-            BigDecimal price,
-            String imageUrl,
-            String paytableJson,
-            Instant createdAt
-    ) {
-        if (caseRepository.existsBySlug(slug)) {
-            return;
-        }
-        List<CaseOpenerEngine.Outcome> outcomes = caseOpenerEngine.parseOutcomes(price, paytableJson);
-        if (!caseOpenerEngine.validateMathematics(slug, price, outcomes)) {
-            throw new IllegalStateException("Mathematical validation failed while seeding case: " + slug);
-        }
-        try {
-            caseRepository.saveAndFlush(new CaseEntity(slug, name, price, imageUrl, true, paytableJson, createdAt));
-        } catch (DataIntegrityViolationException ignored) {
-            // concurrently seeded
         }
     }
 

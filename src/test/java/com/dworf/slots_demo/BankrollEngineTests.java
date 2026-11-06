@@ -256,7 +256,7 @@ class BankrollEngineTests {
     @DisplayName("6.1 Atomic Bankroll Reset: Resets Prize Pool and House Profit to 0.0000 under lock")
     void testAtomicBankrollResetClearsMetrics() {
         // Spin to accrue non-zero house profit
-        caseOpeningService.open(CaseOpeningService.SLUG_PEPE_IRON);
+        caseOpeningService.open("pepe-iron");
 
         BankrollResponse beforeReset = caseOpeningService.getBankroll();
         assertTrue(beforeReset.houseProfit().signum() > 0, "House profit should be > 0 after opening a case");

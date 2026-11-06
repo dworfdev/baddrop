@@ -351,9 +351,9 @@ class SlotsDemoApplicationTests {
         userService.approveTransaction(session.txHash());
 
         // Buy one of each case by slug: pepe-iron ($2), shiba-inu-gold ($5), doge-amethyst ($11)
-        userService.buyItem(new ItemOperationRequest(username, pass, CaseOpeningService.SLUG_PEPE_IRON));
-        userService.buyItem(new ItemOperationRequest(username, pass, CaseOpeningService.SLUG_SHIBA_INU_GOLD));
-        userService.buyItem(new ItemOperationRequest(username, pass, CaseOpeningService.SLUG_DOGE_AMETHYST));
+        userService.buyItem(new ItemOperationRequest(username, pass, "pepe-iron"));
+        userService.buyItem(new ItemOperationRequest(username, pass, "shiba-inu-gold"));
+        userService.buyItem(new ItemOperationRequest(username, pass, "doge-amethyst"));
 
         // Balance check: 50.00 - (2.00 + 5.00 + 11.00) = 32.00
         BalanceResponse balance = userService.getUserBalance(username, pass);
@@ -366,7 +366,7 @@ class SlotsDemoApplicationTests {
         // Disallow purchase if insufficient balance
         assertThrows(ResponseStatusException.class, () -> {
             for (int i = 0; i < 10; i++) {
-                userService.buyItem(new ItemOperationRequest(username, pass, CaseOpeningService.SLUG_DOGE_AMETHYST));
+                userService.buyItem(new ItemOperationRequest(username, pass, "doge-amethyst"));
             }
         });
 
@@ -400,12 +400,12 @@ class SlotsDemoApplicationTests {
         userService.confirmDepositSent(new ConfirmDepositRequest(username, pass, session.txHash()));
         userService.approveTransaction(session.txHash());
 
-        userService.buyItem(new ItemOperationRequest(username, pass, CaseOpeningService.SLUG_PEPE_IRON));
+        userService.buyItem(new ItemOperationRequest(username, pass, "pepe-iron"));
         // Balance before open: 10 - 2 = 8.00
 
         // Unbox pepe-iron
         OpenCaseResponse openResponse = userService.openCase(
-                new ItemOperationRequest(username, pass, CaseOpeningService.SLUG_PEPE_IRON)
+                new ItemOperationRequest(username, pass, "pepe-iron")
         );
         assertEquals("pepe-iron", openResponse.openedCase());
         assertNotNull(openResponse.wonAmount());
@@ -420,7 +420,7 @@ class SlotsDemoApplicationTests {
 
         // Opening again without owning case throws 400
         assertThrows(ResponseStatusException.class, () ->
-                userService.openCase(new ItemOperationRequest(username, pass, CaseOpeningService.SLUG_PEPE_IRON))
+                userService.openCase(new ItemOperationRequest(username, pass, "pepe-iron"))
         );
 
         // Cleanup
