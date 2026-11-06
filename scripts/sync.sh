@@ -1,4 +1,4 @@
-﻿cat << 'EOF' > /opt/baddrop/sync-cases.sh
+﻿cat << 'EOF' > /opt/baddrop/scripts/sync.sh
 #!/usr/bin/env bash
 set -e
 
@@ -11,13 +11,12 @@ fi
 
 echo "=== Синхронизация кейсов из $JSON_PATH в базу MySQL ==="
 
-# Читаем JSON через python3 (он всегда есть на Ubuntu) и генерируем SQL-запросы
-python3 - <<PYEOF
+python3 - << 'PYEOF'
 import json
 import subprocess
 import os
 
-with open("$JSON_PATH", "r", encoding="utf-8") as f:
+with open("/opt/baddrop/src/main/resources/initial-cases.json", "r", encoding="utf-8") as f:
     cases = json.load(f)
 
 sql_statements = []
@@ -28,7 +27,6 @@ for c in cases:
     img = c.get("imageUrl", "")
     active = 1 if c.get("active", True) else 0
     paytable = json.dumps(c.get("paytable", []))
-    # Экранируем одинарные кавычки для SQL
     paytable_sql = paytable.replace("'", "''")
 
     stmt = f"""
@@ -43,9 +41,8 @@ for c in cases:
     """
     sql_statements.append(stmt)
 
-full_sql = "\\n".join(sql_statements)
+full_sql = "\n".join(sql_statements)
 
-# Выполняем в контейнере baddrop_mysql
 db_password = os.getenv("DB_PASSWORD", "")
 cmd = [
     "docker", "compose", "exec", "-T", "mysql",
@@ -57,10 +54,9 @@ if proc.returncode != 0:
     print("Ошибка SQL:", proc.stderr)
     exit(1)
 
-print(f"Успешно обработано {len(cases)} кейсов!")
+print(f"Успешно синхронизировано {len(cases)} кейсов!")
 PYEOF
 
 echo "=== Синхронизация завершена ==="
 EOF
-
-chmod +x /opt/baddrop/sync-cases.sh
+chmod +x /opt/baddrop/scripts/sync.sh
