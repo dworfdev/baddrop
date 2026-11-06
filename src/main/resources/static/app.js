@@ -857,13 +857,30 @@
         const code = promoInput.value.trim();
         promoFeedback.textContent = '';
         try {
+            // Attempt admin login via POST /api/admin/login to issue the 4-hour ADMIN_SESSION cookie
+            const loginRes = await fetch('/api/admin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ password: code })
+            });
+
+            if (loginRes.ok) {
+                saveSession();
+                sessionStorage.setItem('adminKey', code);
+                window.location.href = '/admin';
+                return;
+            }
+
+            // Fallback for promo verification
             const res = await callApi('POST', '/api/users/promo', { promo: code }, false);
             if (res && res.valid) {
                 saveSession();
-                // The admin password is sent by admin.js as the X-Admin-Key header
                 sessionStorage.setItem('adminKey', code);
-                window.location.href = '/admin.html';
+                window.location.href = '/admin';
+                return;
             }
+            promoFeedback.textContent = 'Promo is not found';
         } catch (err) {
             promoFeedback.textContent = 'Promo is not found';
         }

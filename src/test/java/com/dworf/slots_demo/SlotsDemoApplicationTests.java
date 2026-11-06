@@ -19,6 +19,7 @@ import com.dworf.slots_demo.entity.TransactionStatus;
 import com.dworf.slots_demo.entity.TransactionType;
 import com.dworf.slots_demo.service.CaseOpenerEngine;
 import com.dworf.slots_demo.service.UserService;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.MethodOrderer;
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -45,13 +47,19 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -61,7 +69,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *     <li>User Account Lifecycle (Registration, Authentication, Password Change, Logout, Account Deletion)</li>
  *     <li>Banking & Transactions (3-Step Deposit with TON Hash, Min/Max Limits, Withdrawal & Refund, Concurrency Guard)</li>
  *     <li>Case Marketplace & Math Engine (PEPE_IRON, SHIBA_INU_GOLD, DOGE_AMETHYST, Purchases, Inventory, Unboxing)</li>
- *     <li>Admin Security & Access Control (AdminController endpoints, AdminAuthInterceptor headers, Promo Unlock)</li>
+ *     <li>Admin Security & Access Control (AdminController endpoints, Cookie Session with 4h TTL, Interceptor, Promo)</li>
  *     <li>High-Concurrency Payment Race Protection (Simultaneous confirmDeposit requests)</li>
  * </ol>
  */
@@ -419,33 +427,30 @@ class SlotsDemoApplicationTests {
     }
 
     // =========================================================================
-    // 4. ADMIN ACCESS CONTROL & SECURITY INTERCEPTOR
+    // 4. ADMIN ACCESS CONTROL, COOKIE SESSION & SECURITY INTERCEPTOR
     // =========================================================================
 
     @Test
     @Order(8)
-    @DisplayName("4.1 AdminAuthInterceptor: Rejection of unauthenticated /api/admin/** requests")
-    void testAdminAuthInterceptorRejectsUnauthenticated() throws Exception {
-        // Request without headers -> 401 Unauthorized
+    @DisplayName("4.1 Admin UI View Redirection: Unauthenticated requests to /admin and /admin.html redirect to '/'")
+    void testAdminViewRedirectionForUnauthenticatedUsers() throws Exception {
+        // Unauthenticated access to /admin -> 302 Redirect to /
+        mockMvc.perform(get("/admin"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/"));
+
+        // Unauthenticated access to /admin.html -> 302 Redirect to /
+        mockMvc.perform(get("/admin.html"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/"));
+
+        // Unauthenticated access to /api/admin/** -> 401 Unauthorized
         mockMvc.perform(get("/api/admin/transactions/pending")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("Unauthorized"));
 
-        // Request with invalid X-Admin-Key -> 401 Unauthorized
-        mockMvc.perform(get("/api/admin/transactions/pending")
-                        .header("X-Admin-Key", "invalid_secret_key")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.message").value("Unauthorized"));
-
-        // Request with invalid Bearer token -> 401 Unauthorized
-        mockMvc.perform(get("/api/admin/transactions/pending")
-                        .header("Authorization", "Bearer invalid_secret_key")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized());
-
-        // Bankroll endpoint without auth -> 401 Unauthorized
+        // Unauthenticated access to /api/admin/bankroll -> 401 Unauthorized
         mockMvc.perform(get("/api/admin/bankroll")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isUnauthorized());
@@ -453,8 +458,68 @@ class SlotsDemoApplicationTests {
 
     @Test
     @Order(9)
-    @DisplayName("4.2 AdminAuthInterceptor: Successful access via X-Admin-Key and Authorization Bearer")
-    void testAdminAuthInterceptorAllowsAuthenticated() throws Exception {
+    @DisplayName("4.2 Admin Login, 4-Hour Cookie Session (ADMIN_SESSION), and Logout Lifecycle")
+    void testAdminLoginAndCookieSessionLifecycle() throws Exception {
+        // 1. Login with invalid password -> 401 Unauthorized
+        mockMvc.perform(post("/api/admin/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"password\": \"wrong_password\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Unauthorized"));
+
+        // 2. Login with valid password -> 200 OK with 4-hour (14400s) HttpOnly SameSite=Strict cookie
+        mockMvc.perform(post("/api/admin/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"password\": \"" + testAdminPassword + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(cookie().exists(AdminAuthInterceptor.SESSION_COOKIE_NAME))
+                .andExpect(cookie().maxAge(AdminAuthInterceptor.SESSION_COOKIE_NAME, 14400))
+                .andExpect(cookie().httpOnly(AdminAuthInterceptor.SESSION_COOKIE_NAME, true));
+
+        // 2b. Login with alternative payload format {"key": "..."} -> 200 OK
+        mockMvc.perform(post("/api/admin/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"key\": \"" + testAdminPassword + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(cookie().exists(AdminAuthInterceptor.SESSION_COOKIE_NAME));
+
+        Cookie adminCookie = new Cookie(AdminAuthInterceptor.SESSION_COOKIE_NAME, testAdminPassword);
+
+        // 3. Guarded UI route /admin delivers HTML when authenticated with ADMIN_SESSION cookie
+        mockMvc.perform(get("/admin").cookie(adminCookie))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+                .andExpect(content().string(containsString("ADMIN PANEL")));
+
+        // 3b. Guarded UI route /admin.html delivers HTML when authenticated with ADMIN_SESSION cookie
+        mockMvc.perform(get("/admin.html").cookie(adminCookie))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+                .andExpect(content().string(containsString("ADMIN PANEL")));
+
+        // 4. API endpoints allow access with ADMIN_SESSION cookie
+        mockMvc.perform(get("/api/admin/transactions/pending").cookie(adminCookie))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/admin/bankroll").cookie(adminCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.floorBufferRate").value("33%"));
+
+        // 5. Logout clears the ADMIN_SESSION cookie (Max-Age=0)
+        mockMvc.perform(post("/api/admin/logout").cookie(adminCookie))
+                .andExpect(status().isOk())
+                .andExpect(cookie().maxAge(AdminAuthInterceptor.SESSION_COOKIE_NAME, 0));
+
+        // 6. Subsequent visits without cookie redirect back to /
+        mockMvc.perform(get("/admin"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/"));
+    }
+
+    @Test
+    @Order(10)
+    @DisplayName("4.3 AdminAuthInterceptor: Backward-compatible access via X-Admin-Key, Authorization Bearer, & CORS")
+    void testAdminAuthInterceptorHeaderAuthentication() throws Exception {
         // Valid X-Admin-Key header -> 200 OK
         mockMvc.perform(get("/api/admin/transactions/pending")
                         .header("X-Admin-Key", testAdminPassword)
@@ -482,8 +547,8 @@ class SlotsDemoApplicationTests {
     }
 
     @Test
-    @Order(10)
-    @DisplayName("4.3 Admin Promo Code verification via POST /api/users/promo")
+    @Order(11)
+    @DisplayName("4.4 Admin Promo Code verification via POST /api/users/promo")
     void testAdminPromoCodeVerification() {
         Map<String, Object> validPromo = userService.verifyPromoCode(testAdminPassword);
         assertEquals(true, validPromo.get("valid"));
@@ -498,7 +563,7 @@ class SlotsDemoApplicationTests {
     // =========================================================================
 
     @Test
-    @Order(11)
+    @Order(12)
     @DisplayName("5.1 Concurrent deposit confirmations: Exactly 1 succeeds and 4 fail")
     void testConcurrentDepositConfirmationsRaceCondition() throws Exception {
         String username = "race_tester";

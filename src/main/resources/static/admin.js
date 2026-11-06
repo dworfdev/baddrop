@@ -37,6 +37,7 @@
     async function callApi(method, url, body = null) {
         const options = {
             method,
+            credentials: 'include',
             headers: {
                 'Accept': 'application/json',
                 'X-Admin-Key': sessionStorage.getItem(ADMIN_KEY_STORAGE) || ''
@@ -342,8 +343,14 @@
 
     refreshPendingBtn.addEventListener('click', refreshDashboard);
 
-    // 3) Exit button - leaves admin page and returns to logged in user page
-    exitAdminBtn.addEventListener('click', () => {
+    // 3) Exit button - calls POST /api/admin/logout, leaves admin page and returns to logged in user page
+    exitAdminBtn.addEventListener('click', async () => {
+        try {
+            await fetch('/api/admin/logout', {
+                method: 'POST',
+                credentials: 'include'
+            });
+        } catch (_) {}
         sessionStorage.removeItem(ADMIN_KEY_STORAGE);
         window.location.href = '/';
     });
