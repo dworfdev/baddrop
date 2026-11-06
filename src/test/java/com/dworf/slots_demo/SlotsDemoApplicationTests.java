@@ -558,12 +558,56 @@ class SlotsDemoApplicationTests {
         );
     }
 
+    @Test
+    @Order(12)
+    @DisplayName("4.5 Bankroll Reset Endpoint: Protected by Interceptor, Strict Phrase Validation, Atomically Zeros Metrics")
+    void testAdminBankrollResetEndpoint() throws Exception {
+        Cookie adminCookie = new Cookie(AdminAuthInterceptor.SESSION_COOKIE_NAME, testAdminPassword);
+
+        // 1. Unauthenticated request -> 401 Unauthorized
+        mockMvc.perform(post("/api/admin/bankroll/reset")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"confirmation\": \"RESET BANKROLL AS ADMIN\"}"))
+                .andExpect(status().isUnauthorized());
+
+        // 2. Authenticated but mismatched confirmation phrase -> 400 Bad Request
+        mockMvc.perform(post("/api/admin/bankroll/reset")
+                        .cookie(adminCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"confirmation\": \"wrong phrase\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid confirmation phrase"));
+
+        // 2b. Missing payload -> 400 Bad Request
+        mockMvc.perform(post("/api/admin/bankroll/reset")
+                        .cookie(adminCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid confirmation phrase"));
+
+        // 3. Authenticated with exact phrase -> 200 OK with prizePool and houseProfit equal to 0.00
+        mockMvc.perform(post("/api/admin/bankroll/reset")
+                        .cookie(adminCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"confirmation\": \"RESET BANKROLL AS ADMIN\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.prizePool").value(0.00))
+                .andExpect(jsonPath("$.houseProfit").value(0.00));
+
+        // 4. Verify via GET /api/admin/bankroll
+        mockMvc.perform(get("/api/admin/bankroll").cookie(adminCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profitPool").value(0.00))
+                .andExpect(jsonPath("$.houseProfit").value(0.00));
+    }
+
     // =========================================================================
     // 5. CONCURRENCY SAFETY & RACE CONDITION PROTECTION
     // =========================================================================
 
     @Test
-    @Order(12)
+    @Order(13)
     @DisplayName("5.1 Concurrent deposit confirmations: Exactly 1 succeeds and 4 fail")
     void testConcurrentDepositConfirmationsRaceCondition() throws Exception {
         String username = "race_tester";

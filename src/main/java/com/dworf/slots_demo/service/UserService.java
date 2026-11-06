@@ -477,6 +477,10 @@ public class UserService {
         return caseOpeningService.getBankroll();
     }
 
+    public BankrollResponse resetBankroll() {
+        return caseOpeningService.resetBankroll();
+    }
+
     public Map<String, Object> verifyPromoCode(String promo) {
         if (promo != null && adminPassword != null && !adminPassword.isBlank() && adminPassword.trim().equals(promo.trim())) {
             return Map.of(

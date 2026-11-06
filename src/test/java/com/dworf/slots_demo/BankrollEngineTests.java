@@ -228,6 +228,30 @@ class BankrollEngineTests {
                 threads * spinsPerThread, totalCost, totalPaid);
     }
 
+    // =========================================================================
+    // 6. ATOMIC BANKROLL RESET
+    // =========================================================================
+
+    @Test
+    @Order(6)
+    @DisplayName("6.1 Atomic Bankroll Reset: Resets Prize Pool and House Profit to 0.0000 under lock")
+    void testAtomicBankrollResetClearsMetrics() {
+        // Spin to accrue non-zero house profit
+        caseOpeningService.open(ItemType.PEPE_IRON);
+
+        BankrollResponse beforeReset = caseOpeningService.getBankroll();
+        assertTrue(beforeReset.houseProfit().signum() > 0, "House profit should be > 0 after opening a case");
+
+        BankrollResponse resetResult = caseOpeningService.resetBankroll();
+        assertNotNull(resetResult);
+        assertEquals(0, resetResult.profitPool().compareTo(BigDecimal.ZERO), "Prize pool must be reset to 0");
+        assertEquals(0, resetResult.houseProfit().compareTo(BigDecimal.ZERO), "House profit must be reset to 0");
+
+        BankrollResponse current = caseOpeningService.getBankroll();
+        assertEquals(0, current.profitPool().compareTo(BigDecimal.ZERO), "Persisted prize pool must be 0");
+        assertEquals(0, current.houseProfit().compareTo(BigDecimal.ZERO), "Persisted house profit must be 0");
+    }
+
     /**
      * Mathematical Identity Guard:
      * 1. House profit delta == exactly 7% of total spin cost.

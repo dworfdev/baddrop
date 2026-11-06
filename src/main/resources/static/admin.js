@@ -19,8 +19,16 @@
     const userStatsTimeline = document.getElementById('userStatsTimeline');
     const toastContainer = document.getElementById('toastContainer');
     const metricProfitPool = document.getElementById('metricProfitPool');
-    const metricFloorBuffer = document.getElementById('metricFloorBuffer');
     const metricHouseProfit = document.getElementById('metricHouseProfit');
+
+    // Bankroll Reset Modal Elements
+    const resetBankrollBtn = document.getElementById('resetBankrollBtn');
+    const bankrollResetModal = document.getElementById('bankrollResetModal');
+    const closeResetModalBtn = document.getElementById('closeResetModalBtn');
+    const cancelResetModalBtn = document.getElementById('cancelResetModalBtn');
+    const confirmResetSubmitBtn = document.getElementById('confirmResetSubmitBtn');
+    const resetConfirmInput = document.getElementById('resetConfirmInput');
+    const resetModalError = document.getElementById('resetModalError');
 
     function showToast(message, isError = false) {
         const toast = document.createElement('div');
@@ -72,7 +80,7 @@
     }
 
     // =========================================================================
-    // 0) BANKROLL METRICS: PROFIT POOL / FLOOR BUFFER / HOUSE PROFIT
+    // 0) BANKROLL METRICS: PROFIT POOL / HOUSE PROFIT & DESTRUCTIVE RESET
     // =========================================================================
     function formatMoney(value) {
         const n = Number(value);
@@ -86,9 +94,55 @@
         try {
             const bankroll = await callApi('GET', '/api/admin/bankroll');
             metricProfitPool.textContent = formatMoney(bankroll.profitPool);
-            metricFloorBuffer.textContent = bankroll.floorBufferRate || '33%';
             metricHouseProfit.textContent = formatMoney(bankroll.houseProfit);
         } catch (_) {}
+    }
+
+    function openResetModal() {
+        if (!bankrollResetModal) return;
+        resetConfirmInput.value = '';
+        resetConfirmInput.classList.remove('input-error');
+        resetModalError.style.display = 'none';
+        bankrollResetModal.style.display = 'flex';
+        setTimeout(() => resetConfirmInput.focus(), 60);
+    }
+
+    function closeResetModal() {
+        if (!bankrollResetModal) return;
+        bankrollResetModal.style.display = 'none';
+        resetConfirmInput.value = '';
+        resetConfirmInput.classList.remove('input-error');
+        resetModalError.style.display = 'none';
+    }
+
+    async function submitBankrollReset() {
+        const phrase = resetConfirmInput.value.trim();
+        if (phrase !== 'RESET BANKROLL AS ADMIN') {
+            resetConfirmInput.classList.add('input-error');
+            resetModalError.style.display = 'block';
+            resetConfirmInput.focus();
+            return;
+        }
+
+        resetConfirmInput.classList.remove('input-error');
+        resetModalError.style.display = 'none';
+        confirmResetSubmitBtn.disabled = true;
+
+        try {
+            const result = await callApi('POST', '/api/admin/bankroll/reset', {
+                confirmation: 'RESET BANKROLL AS ADMIN'
+            });
+            const newProfitPool = result.prizePool !== undefined ? result.prizePool : (result.profitPool ?? 0);
+            const newHouseProfit = result.houseProfit !== undefined ? result.houseProfit : 0;
+            metricProfitPool.textContent = formatMoney(newProfitPool);
+            metricHouseProfit.textContent = formatMoney(newHouseProfit);
+            closeResetModal();
+            showToast('Bankroll metrics reset successfully');
+        } catch (err) {
+            resetConfirmInput.classList.add('input-error');
+        } finally {
+            confirmResetSubmitBtn.disabled = false;
+        }
     }
 
     // Refresh = bankroll metrics + pending transactions list
@@ -354,6 +408,43 @@
         sessionStorage.removeItem(ADMIN_KEY_STORAGE);
         window.location.href = '/';
     });
+
+    // 4) Bankroll Reset Modal Event Listeners
+    if (resetBankrollBtn) {
+        resetBankrollBtn.addEventListener('click', openResetModal);
+    }
+    if (closeResetModalBtn) {
+        closeResetModalBtn.addEventListener('click', closeResetModal);
+    }
+    if (cancelResetModalBtn) {
+        cancelResetModalBtn.addEventListener('click', closeResetModal);
+    }
+    if (bankrollResetModal) {
+        bankrollResetModal.addEventListener('click', (e) => {
+            if (e.target === bankrollResetModal) {
+                closeResetModal();
+            }
+        });
+    }
+    if (confirmResetSubmitBtn) {
+        confirmResetSubmitBtn.addEventListener('click', submitBankrollReset);
+    }
+    if (resetConfirmInput) {
+        resetConfirmInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitBankrollReset();
+            } else if (e.key === 'Escape') {
+                closeResetModal();
+            }
+        });
+        resetConfirmInput.addEventListener('input', () => {
+            resetConfirmInput.classList.remove('input-error');
+            if (resetModalError) {
+                resetModalError.style.display = 'none';
+            }
+        });
+    }
 
     // Initial load: bankroll metrics + default view with all users' pending transactions
     refreshDashboard();

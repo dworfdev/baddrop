@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 
@@ -121,6 +122,21 @@ public class AdminController {
     @GetMapping("/api/admin/bankroll")
     public BankrollResponse getBankroll() {
         return userService.getBankroll();
+    }
+
+    // 4b) Atomically reset platform bankroll metrics (Profit Pool & House Profit) to 0.00
+    @PostMapping("/api/admin/bankroll/reset")
+    public ResponseEntity<?> resetBankroll(@RequestBody(required = false) Map<String, String> body) {
+        String confirmation = body != null ? body.get("confirmation") : null;
+        if (!"RESET BANKROLL AS ADMIN".equals(confirmation)) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Invalid confirmation phrase"));
+        }
+        BankrollResponse bankroll = userService.resetBankroll();
+        return ResponseEntity.ok(Map.of(
+                "prizePool", bankroll.profitPool().setScale(2, RoundingMode.HALF_UP),
+                "profitPool", bankroll.profitPool().setScale(2, RoundingMode.HALF_UP),
+                "houseProfit", bankroll.houseProfit().setScale(2, RoundingMode.HALF_UP)
+        ));
     }
 
     // 5) Specific user's full overview (pending transactions, history)

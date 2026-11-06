@@ -129,6 +129,20 @@ public class CaseOpeningService {
         return BankrollResponse.fromEntity(bankroll);
     }
 
+    /**
+     * Atomically resets the persistent prize pool and house profit to zero (0.0000)
+     * under a pessimistic write lock (SELECT ... FOR UPDATE).
+     */
+    @Transactional
+    public BankrollResponse resetBankroll() {
+        SystemBankroll bankroll = bankrollRepository.findByIdForUpdate(SystemBankroll.SINGLETON_ID)
+                .orElseThrow(() -> new IllegalStateException("system_bankroll row is missing"));
+        bankroll.setPrizePool(BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        bankroll.setHouseProfit(BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        SystemBankroll saved = bankrollRepository.save(bankroll);
+        return BankrollResponse.fromEntity(saved);
+    }
+
     private static BigDecimal scaled(BigDecimal value) {
         return value.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
     }
