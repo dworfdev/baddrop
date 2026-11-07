@@ -2,47 +2,46 @@
   {
     "slug": "pepe-iron",
     "name": "pepe-iron",
-    "price": 2.00,
+    "price": 0.20,
     "imageUrl": "/imgs/cases/case-pepe-iron.png",
     "active": true,
     "paytable": [
-      { "multiplier": 0.15, "probability": 0.200, "label": "Common Scrap (0.15x)" },
-      { "multiplier": 0.50, "probability": 0.310, "label": "Low Return (0.50x)" },
-      { "multiplier": 0.90, "probability": 0.230, "label": "Near Even (0.90x)" },
-      { "multiplier": 1.50, "probability": 0.180, "label": "Small Win (1.50x)" },
-      { "multiplier": 2.80, "probability": 0.060, "label": "Nice Win (2.80x)" },
+      { "multiplier": 0.25, "probability": 0.180, "label": "Common Scrap (0.25x)" },
+      { "multiplier": 0.50, "probability": 0.340, "label": "Low Return (0.50x)" },
+      { "multiplier": 0.90, "probability": 0.250, "label": "Near Even (0.90x)" },
+      { "multiplier": 1.50, "probability": 0.160, "label": "Small Win (1.50x)" },
+      { "multiplier": 3.00, "probability": 0.050, "label": "Nice Win (3.00x)" },
       { "multiplier": 5.00, "probability": 0.020, "label": "Cap Prize (5.00x)" }
     ]
   },
   {
     "slug": "shiba-inu-gold",
     "name": "shiba-inu-gold",
-    "price": 5.00,
+    "price": 0.90,
     "imageUrl": "/imgs/cases/case-shiba-inu-gold.png",
     "active": true,
     "paytable": [
-      { "multiplier": 0.10, "probability": 0.200, "label": "Common Scrap (0.10x)" },
-      { "multiplier": 0.45, "probability": 0.340, "label": "Low Return (0.45x)" },
-      { "multiplier": 0.85, "probability": 0.240, "label": "Near Even (0.85x)" },
-      { "multiplier": 1.70, "probability": 0.140, "label": "Decent Win (1.70x)" },
-      { "multiplier": 3.50, "probability": 0.070, "label": "Big Win (3.50x)" },
-      { "multiplier": 7.00, "probability": 0.010, "label": "Cap Prize (7.00x)" }
+      { "multiplier": 0.10, "probability": 0.125, "label": "Common Scrap (0.10x)" },
+      { "multiplier": 0.50, "probability": 0.445, "label": "Low Return (0.50x)" },
+      { "multiplier": 0.80, "probability": 0.250, "label": "Near Even (0.80x)" },
+      { "multiplier": 2.00, "probability": 0.120, "label": "Decent Win (2.00x)" },
+      { "multiplier": 3.50, "probability": 0.050, "label": "Big Win (3.50x)" },
+      { "multiplier": 8.00, "probability": 0.010, "label": "Cap Prize (8.00x)" }
     ]
   },
   {
     "slug": "doge-amethyst",
     "name": "doge-amethyst",
-    "price": 11.00,
+    "price": 2.50,
     "imageUrl": "/imgs/cases/case-doge-amethyst.png",
     "active": true,
     "paytable": [
-      { "multiplier": 0.08, "probability": 0.300, "label": "Broken Junk (0.08x)" },
-      { "multiplier": 0.40, "probability": 0.240, "label": "Low Return (0.40x)" },
-      { "multiplier": 0.80, "probability": 0.250, "label": "Near Even (0.80x)" },
-      { "multiplier": 2.00, "probability": 0.145, "label": "Great Win (2.00x)" },
-      { "multiplier": 4.50, "probability": 0.060, "label": "Epic Win (4.50x)" },
-      { "multiplier": 10.00, "probability": 0.005, "label": "Gold Jackpot (10.00x)" }
+      { "multiplier": 0.10, "probability": 0.220, "label": "Broken Junk (0.10x)" },
+      { "multiplier": 0.40, "probability": 0.390, "label": "Low Return (0.40x)" },
+      { "multiplier": 0.80, "probability": 0.240, "label": "Near Even (0.80x)" },
+      { "multiplier": 2.50, "probability": 0.110, "label": "Great Win (2.50x)" },
+      { "multiplier": 6.00, "probability": 0.035, "label": "Epic Win (6.00x)" },
+      { "multiplier": 15.00, "probability": 0.005, "label": "Gold Jackpot (15.00x)" }
     ]
   }
 ]
-
