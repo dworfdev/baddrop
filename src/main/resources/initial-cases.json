@@ -1,7 +1,7 @@
 [
   {
     "slug": "hamster-bronze",
-    "name": "hamster-bronze",
+    "name": "HAMSTER BRONZE CASE",
     "price": 0.1,
     "imageUrl": "/imgs/cases/case-hamster-bronze.png",
     "active": true,
@@ -40,7 +40,7 @@
   },
   {
     "slug": "dogs-plastic",
-    "name": "dogs-plastic",
+    "name": "DOGS PLASTIC CASE",
     "price": 0.15,
     "imageUrl": "/imgs/cases/case-dogs-plastic.png",
     "active": true,
@@ -78,10 +78,10 @@
     ]
   },
   {
-    "slug": "pepe-iron",
-    "name": "pepe-iron",
+    "slug": "pepe-plastic",
+    "name": "PEPE PLASTIC CASE",
     "price": 0.2,
-    "imageUrl": "/imgs/cases/case-pepe-iron.png",
+    "imageUrl": "/imgs/cases/case-pepe-plastic.png",
     "active": true,
     "paytable": [
       {
@@ -118,7 +118,7 @@
   },
   {
     "slug": "not-iron",
-    "name": "not-iron",
+    "name": "NOT IRON CASE",
     "price": 0.45,
     "imageUrl": "/imgs/cases/case-not-iron.png",
     "active": true,
@@ -156,10 +156,10 @@
     ]
   },
   {
-    "slug": "shiba-inu-gold",
-    "name": "shiba-inu-gold",
+    "slug": "shiba-inu-silver",
+    "name": "SHIBA-INU SILVER CASE",
     "price": 0.9,
-    "imageUrl": "/imgs/cases/case-shiba-inu-gold.png",
+    "imageUrl": "/imgs/cases/case-shiba-inu-silver.png",
     "active": true,
     "paytable": [
       {
@@ -195,10 +195,10 @@
     ]
   },
   {
-    "slug": "doge-amethyst",
-    "name": "doge-amethyst",
+    "slug": "doge-gold",
+    "name": "DOGE GOLD CASE",
     "price": 2.5,
-    "imageUrl": "/imgs/cases/case-doge-amethyst.png",
+    "imageUrl": "/imgs/cases/case-doge-gold.png",
     "active": true,
     "paytable": [
       {
@@ -234,10 +234,10 @@
     ]
   },
   {
-    "slug": "ton-sapphire",
-    "name": "ton-sapphire",
+    "slug": "ton-crystal",
+    "name": "TON CRYSTAL CASE",
     "price": 4.0,
-    "imageUrl": "/imgs/cases/case-ton-sapphire.png",
+    "imageUrl": "/imgs/cases/case-ton-crystal.png",
     "active": true,
     "paytable": [
       {
@@ -274,7 +274,7 @@
   },
   {
     "slug": "solana-neon",
-    "name": "solana-neon",
+    "name": "SOLANA NEON CASE",
     "price": 6.5,
     "imageUrl": "/imgs/cases/case-solana-neon.png",
     "active": true,
@@ -313,7 +313,7 @@
   },
   {
     "slug": "btc-carbon",
-    "name": "btc-carbon",
+    "name": "BTC CARBON CASE",
     "price": 10.0,
     "imageUrl": "/imgs/cases/case-btc-carbon.png",
     "active": true,
