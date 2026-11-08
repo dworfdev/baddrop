@@ -215,11 +215,11 @@
                     <input id="modalBalanceAmount" type="number" min="0" step="0.01" value="0" />
                 </div>
                 <div class="modal-chips">
+                    <button type="button" class="modal-chip" data-amt="1">$1</button>
+                    <button type="button" class="modal-chip" data-amt="2">$2</button>
                     <button type="button" class="modal-chip" data-amt="5">$5</button>
                     <button type="button" class="modal-chip" data-amt="10">$10</button>
-                    <button type="button" class="modal-chip" data-amt="25">$25</button>
-                    <button type="button" class="modal-chip" data-amt="50">$50</button>
-                    <button type="button" class="modal-chip" data-amt="100">$100</button>
+                    <button type="button" class="modal-chip" data-amt="20">$20</button>
                 </div>
                 <div class="modal-actions">
                     <button id="modalDepositBtn" type="button" class="pill-btn-primary">+ Deposit</button>
@@ -252,14 +252,14 @@
 
                     <div class="admin-payment-note">
                         <div class="admin-contact-line">
-                            Admin username: <span class="mono-bold">chromakid</span>
+                            Admin username: <span id="depositAdminUsernameText" class="mono-bold"></span>
                         </div>
                         <p class="payment-instruction-text">
                             You must send your screenshot of your payment and our in-game username to one of our admins
                         </p>
                         <div class="payment-attention-box">
                             <span class="attention-title">ATTENTION!</span>
-                            <span>If you will not send screenshot with your in-game user &mdash; transaction will be declined.</span>
+                            <span>If you will not send screenshot with your in-game user &mdash; transaction will be declined. The specified amount does not include network or processing fees; all transaction fees must be paid entirely by the user.</span>
                         </div>
                     </div>
 
@@ -284,7 +284,7 @@
                     <div class="admin-payment-note withdraw-attention-note">
                         <div class="payment-attention-box">
                             <span class="attention-title">ATTENTION!</span>
-                            <span>If you will submit wrong address &mdash; you will lose your money.</span>
+                            <span>If you will submit wrong address &mdash; you will lose your money. The specified amount does not include network or processing fees; all transaction fees must be paid entirely by the user.</span>
                         </div>
                     </div>
 
@@ -396,7 +396,7 @@
     <!-- =================================================================== -->
     <div id="caseOpeningOverlay" class="case-opening-overlay">
         <div id="caseTapStage" class="case-tap-stage active">
-            <img id="caseTapImage" src="/imgs/cases/case-pepe-plastic.png" alt="Case" class="case-tap-img" />
+            <img id="caseTapImage" src="" alt="Case" class="case-tap-img" />
             <div id="caseTapPrompt" class="case-tap-text">Tap!</div>
         </div>
     </div>

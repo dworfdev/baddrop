@@ -35,27 +35,34 @@ import java.util.Map;
 public class UserService {
 
     public static final long DEPOSIT_TIMER_SECONDS = 15 * 60L;
-    public static final BigDecimal MIN_DEPOSIT_AMOUNT = new BigDecimal("5.00");
-    public static final BigDecimal MIN_WITHDRAW_AMOUNT = new BigDecimal("10.00");
+    public static final BigDecimal MIN_DEPOSIT_AMOUNT = new BigDecimal("1.00");
+    public static final BigDecimal MIN_WITHDRAW_AMOUNT = new BigDecimal("2.50");
 
     private final UserRepository userRepository;
     private final BalanceTransactionRepository transactionRepository;
     private final CaseOpenerEngine caseOpenerEngine;
     private final CaseOpeningService caseOpeningService;
     private final String adminPassword;
+    private final String depositAdminUsername;
 
     public UserService(
             UserRepository userRepository,
             BalanceTransactionRepository transactionRepository,
             CaseOpenerEngine caseOpenerEngine,
             CaseOpeningService caseOpeningService,
-            @Value("${slots.admin.password:admin1234}") String adminPassword
+            @Value("${slots.admin.password:admin1234}") String adminPassword,
+            @Value("${app.deposit.admin-username:chromakid}") String depositAdminUsername
     ) {
         this.userRepository = userRepository;
         this.transactionRepository = transactionRepository;
         this.caseOpenerEngine = caseOpenerEngine;
         this.caseOpeningService = caseOpeningService;
         this.adminPassword = adminPassword;
+        this.depositAdminUsername = depositAdminUsername;
+    }
+
+    public String getDepositAdminUsername() {
+        return depositAdminUsername;
     }
 
     @Transactional
@@ -130,7 +137,7 @@ public class UserService {
         if (request.amount().compareTo(MIN_DEPOSIT_AMOUNT) < 0) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Minimum deposit amount is $5.00 USDT"
+                    "Minimum deposit amount is $1.00 USDT"
             );
         }
 
@@ -163,7 +170,7 @@ public class UserService {
                 TransactionType.DEPOSIT,
                 TransactionStatus.APPROVED
         );
-        return DepositSessionResponse.fromEntity(saved, false, hasApprovedDeposit);
+        return DepositSessionResponse.fromEntity(saved, false, hasApprovedDeposit, depositAdminUsername);
     }
 
     /**
@@ -199,9 +206,9 @@ public class UserService {
         }
 
         if (activeTx == null) {
-            return DepositSessionResponse.inactive(user.getUsername(), hasPending, hasApprovedDeposit);
+            return DepositSessionResponse.inactive(user.getUsername(), hasPending, hasApprovedDeposit, depositAdminUsername);
         }
-        return DepositSessionResponse.fromEntity(activeTx, hasPending, hasApprovedDeposit);
+        return DepositSessionResponse.fromEntity(activeTx, hasPending, hasApprovedDeposit, depositAdminUsername);
     }
 
     public UserResponse confirmDepositSent(UserCredentialsRequest request) {
@@ -282,7 +289,7 @@ public class UserService {
         if (request.amount().compareTo(MIN_WITHDRAW_AMOUNT) < 0) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Minimum withdrawal amount is $10.00 USDT"
+                    "Minimum withdrawal amount is $2.50 USDT"
             );
         }
 

@@ -7,34 +7,34 @@
     "active": true,
     "paytable": [
       {
-        "multiplier": 0.3,
-        "probability": 0.15,
-        "label": "Common Scrap (0.30x)"
+        "multiplier": 0.4,
+        "probability": 0.18,
+        "label": "Common Scrap (0.40x)"
       },
       {
-        "multiplier": 0.55,
-        "probability": 0.34,
-        "label": "Low Return (0.55x)"
+        "multiplier": 0.7,
+        "probability": 0.35,
+        "label": "Minor Return (0.70x)"
       },
       {
-        "multiplier": 0.9,
-        "probability": 0.245,
-        "label": "Near Even (0.90x)"
+        "multiplier": 0.95,
+        "probability": 0.25,
+        "label": "Near Even (0.95x)"
       },
       {
-        "multiplier": 1.4,
-        "probability": 0.175,
-        "label": "Small Win (1.40x)"
+        "multiplier": 1.3,
+        "probability": 0.14,
+        "label": "Small Win (1.30x)"
       },
       {
-        "multiplier": 2.5,
-        "probability": 0.085,
-        "label": "Nice Win (2.50x)"
+        "multiplier": 2.0,
+        "probability": 0.065,
+        "label": "Nice Win (2.00x)"
       },
       {
-        "multiplier": 4.0,
-        "probability": 0.005,
-        "label": "Cap Prize (4.00x)"
+        "multiplier": 3.2,
+        "probability": 0.015,
+        "label": "Top Prize (3.20x)"
       }
     ]
   },
@@ -46,34 +46,34 @@
     "active": true,
     "paytable": [
       {
-        "multiplier": 0.25,
+        "multiplier": 0.35,
+        "probability": 0.16,
+        "label": "Common Scrap (0.35x)"
+      },
+      {
+        "multiplier": 0.65,
+        "probability": 0.34,
+        "label": "Minor Return (0.65x)"
+      },
+      {
+        "multiplier": 0.95,
+        "probability": 0.26,
+        "label": "Near Even (0.95x)"
+      },
+      {
+        "multiplier": 1.4,
         "probability": 0.15,
-        "label": "Common Scrap (0.25x)"
+        "label": "Small Win (1.40x)"
       },
       {
-        "multiplier": 0.5,
-        "probability": 0.355,
-        "label": "Low Return (0.50x)"
+        "multiplier": 2.2,
+        "probability": 0.075,
+        "label": "Nice Win (2.20x)"
       },
       {
-        "multiplier": 0.9,
-        "probability": 0.24,
-        "label": "Near Even (0.90x)"
-      },
-      {
-        "multiplier": 1.5,
-        "probability": 0.185,
-        "label": "Small Win (1.50x)"
-      },
-      {
-        "multiplier": 2.8,
-        "probability": 0.055,
-        "label": "Nice Win (2.80x)"
-      },
-      {
-        "multiplier": 4.5,
+        "multiplier": 3.5,
         "probability": 0.015,
-        "label": "Cap Prize (4.50x)"
+        "label": "Top Prize (3.50x)"
       }
     ]
   },
@@ -85,34 +85,34 @@
     "active": true,
     "paytable": [
       {
-        "multiplier": 0.25,
-        "probability": 0.18,
-        "label": "Common Scrap (0.25x)"
+        "multiplier": 0.35,
+        "probability": 0.15,
+        "label": "Common Scrap (0.35x)"
       },
       {
-        "multiplier": 0.5,
-        "probability": 0.34,
-        "label": "Low Return (0.50x)"
+        "multiplier": 0.65,
+        "probability": 0.33,
+        "label": "Minor Return (0.65x)"
       },
       {
-        "multiplier": 0.9,
-        "probability": 0.25,
-        "label": "Near Even (0.90x)"
+        "multiplier": 0.95,
+        "probability": 0.27,
+        "label": "Near Even (0.95x)"
       },
       {
-        "multiplier": 1.5,
+        "multiplier": 1.45,
         "probability": 0.16,
-        "label": "Small Win (1.50x)"
+        "label": "Small Win (1.45x)"
       },
       {
-        "multiplier": 3.0,
-        "probability": 0.05,
-        "label": "Nice Win (3.00x)"
+        "multiplier": 2.4,
+        "probability": 0.075,
+        "label": "Nice Win (2.40x)"
       },
       {
-        "multiplier": 5.0,
-        "probability": 0.02,
-        "label": "Cap Prize (5.00x)"
+        "multiplier": 3.8,
+        "probability": 0.015,
+        "label": "Top Prize (3.80x)"
       }
     ]
   },
@@ -124,34 +124,34 @@
     "active": true,
     "paytable": [
       {
-        "multiplier": 0.2,
+        "multiplier": 0.3,
         "probability": 0.15,
-        "label": "Common Scrap (0.20x)"
+        "label": "Common Scrap (0.30x)"
       },
       {
-        "multiplier": 0.5,
-        "probability": 0.395,
-        "label": "Low Return (0.50x)"
+        "multiplier": 0.6,
+        "probability": 0.33,
+        "label": "Minor Return (0.60x)"
       },
       {
-        "multiplier": 0.85,
-        "probability": 0.24,
-        "label": "Near Even (0.85x)"
+        "multiplier": 0.9,
+        "probability": 0.27,
+        "label": "Near Even (0.90x)"
       },
       {
-        "multiplier": 1.7,
-        "probability": 0.145,
-        "label": "Small Win (1.70x)"
+        "multiplier": 1.5,
+        "probability": 0.16,
+        "label": "Small Win (1.50x)"
       },
       {
-        "multiplier": 3.2,
-        "probability": 0.06,
-        "label": "Nice Win (3.20x)"
+        "multiplier": 2.6,
+        "probability": 0.075,
+        "label": "Nice Win (2.60x)"
       },
       {
-        "multiplier": 6.0,
-        "probability": 0.01,
-        "label": "Cap Prize (6.00x)"
+        "multiplier": 4.2,
+        "probability": 0.015,
+        "label": "Top Prize (4.20x)"
       }
     ]
   },
@@ -163,34 +163,34 @@
     "active": true,
     "paytable": [
       {
-        "multiplier": 0.1,
-        "probability": 0.125,
-        "label": "Common Scrap (0.10x)"
+        "multiplier": 0.25,
+        "probability": 0.14,
+        "label": "Common Scrap (0.25x)"
       },
       {
-        "multiplier": 0.5,
-        "probability": 0.445,
-        "label": "Low Return (0.50x)"
+        "multiplier": 0.6,
+        "probability": 0.33,
+        "label": "Minor Return (0.60x)"
       },
       {
-        "multiplier": 0.8,
-        "probability": 0.25,
-        "label": "Near Even (0.80x)"
+        "multiplier": 0.9,
+        "probability": 0.28,
+        "label": "Near Even (0.90x)"
       },
       {
-        "multiplier": 2.0,
-        "probability": 0.12,
-        "label": "Decent Win (2.00x)"
+        "multiplier": 1.6,
+        "probability": 0.15,
+        "label": "Solid Win (1.60x)"
       },
       {
-        "multiplier": 3.5,
-        "probability": 0.05,
-        "label": "Big Win (3.50x)"
+        "multiplier": 2.8,
+        "probability": 0.08,
+        "label": "Nice Win (2.80x)"
       },
       {
-        "multiplier": 8.0,
-        "probability": 0.01,
-        "label": "Cap Prize (8.00x)"
+        "multiplier": 4.6,
+        "probability": 0.02,
+        "label": "Top Prize (4.60x)"
       }
     ]
   },
@@ -202,34 +202,34 @@
     "active": true,
     "paytable": [
       {
-        "multiplier": 0.1,
-        "probability": 0.22,
-        "label": "Broken Junk (0.10x)"
+        "multiplier": 0.25,
+        "probability": 0.13,
+        "label": "Common Scrap (0.25x)"
       },
       {
-        "multiplier": 0.4,
-        "probability": 0.39,
-        "label": "Low Return (0.40x)"
+        "multiplier": 0.55,
+        "probability": 0.34,
+        "label": "Minor Return (0.55x)"
       },
       {
-        "multiplier": 0.8,
-        "probability": 0.24,
-        "label": "Near Even (0.80x)"
+        "multiplier": 0.85,
+        "probability": 0.28,
+        "label": "Near Even (0.85x)"
       },
       {
-        "multiplier": 2.5,
-        "probability": 0.11,
-        "label": "Great Win (2.50x)"
+        "multiplier": 1.7,
+        "probability": 0.15,
+        "label": "Solid Win (1.70x)"
       },
       {
-        "multiplier": 6.0,
-        "probability": 0.035,
-        "label": "Epic Win (6.00x)"
+        "multiplier": 3.0,
+        "probability": 0.08,
+        "label": "Great Win (3.00x)"
       },
       {
-        "multiplier": 15.0,
-        "probability": 0.005,
-        "label": "Gold Jackpot (15.00x)"
+        "multiplier": 5.0,
+        "probability": 0.02,
+        "label": "Gold Prize (5.00x)"
       }
     ]
   },
@@ -241,34 +241,34 @@
     "active": true,
     "paytable": [
       {
-        "multiplier": 0.1,
-        "probability": 0.16,
-        "label": "Broken Junk (0.10x)"
+        "multiplier": 0.2,
+        "probability": 0.13,
+        "label": "Common Scrap (0.20x)"
       },
       {
-        "multiplier": 0.4,
-        "probability": 0.47,
-        "label": "Low Return (0.40x)"
+        "multiplier": 0.55,
+        "probability": 0.33,
+        "label": "Minor Return (0.55x)"
       },
       {
-        "multiplier": 0.8,
-        "probability": 0.24,
-        "label": "Near Even (0.80x)"
+        "multiplier": 0.85,
+        "probability": 0.28,
+        "label": "Near Even (0.85x)"
       },
       {
-        "multiplier": 2.8,
-        "probability": 0.105,
-        "label": "Great Win (2.80x)"
+        "multiplier": 1.8,
+        "probability": 0.15,
+        "label": "Solid Win (1.80x)"
       },
       {
-        "multiplier": 7.0,
-        "probability": 0.02,
-        "label": "Epic Win (7.00x)"
+        "multiplier": 3.2,
+        "probability": 0.085,
+        "label": "Great Win (3.20x)"
       },
       {
-        "multiplier": 20.0,
-        "probability": 0.005,
-        "label": "Gold Jackpot (20.00x)"
+        "multiplier": 5.5,
+        "probability": 0.025,
+        "label": "Crystal Prize (5.50x)"
       }
     ]
   },
@@ -280,34 +280,34 @@
     "active": true,
     "paytable": [
       {
-        "multiplier": 0.08,
-        "probability": 0.15,
-        "label": "Broken Junk (0.08x)"
+        "multiplier": 0.2,
+        "probability": 0.12,
+        "label": "Common Scrap (0.20x)"
       },
       {
-        "multiplier": 0.35,
-        "probability": 0.505,
-        "label": "Low Return (0.35x)"
+        "multiplier": 0.5,
+        "probability": 0.33,
+        "label": "Minor Return (0.50x)"
       },
       {
-        "multiplier": 0.75,
-        "probability": 0.235,
-        "label": "Near Even (0.75x)"
+        "multiplier": 0.85,
+        "probability": 0.28,
+        "label": "Near Even (0.85x)"
       },
       {
-        "multiplier": 3.0,
-        "probability": 0.085,
-        "label": "Great Win (3.00x)"
+        "multiplier": 1.9,
+        "probability": 0.155,
+        "label": "Solid Win (1.90x)"
       },
       {
-        "multiplier": 8.0,
-        "probability": 0.02,
-        "label": "Epic Win (8.00x)"
+        "multiplier": 3.4,
+        "probability": 0.09,
+        "label": "Great Win (3.40x)"
       },
       {
-        "multiplier": 30.0,
-        "probability": 0.005,
-        "label": "Gold Jackpot (30.00x)"
+        "multiplier": 6.0,
+        "probability": 0.025,
+        "label": "Neon Prize (6.00x)"
       }
     ]
   },
@@ -319,34 +319,34 @@
     "active": true,
     "paytable": [
       {
-        "multiplier": 0.05,
-        "probability": 0.145,
-        "label": "Broken Junk (0.05x)"
+        "multiplier": 0.2,
+        "probability": 0.12,
+        "label": "Common Scrap (0.20x)"
       },
       {
-        "multiplier": 0.3,
-        "probability": 0.555,
-        "label": "Low Return (0.30x)"
+        "multiplier": 0.5,
+        "probability": 0.32,
+        "label": "Minor Return (0.50x)"
       },
       {
-        "multiplier": 0.75,
-        "probability": 0.215,
-        "label": "Near Even (0.75x)"
+        "multiplier": 0.85,
+        "probability": 0.28,
+        "label": "Near Even (0.85x)"
       },
       {
-        "multiplier": 3.5,
-        "probability": 0.07,
-        "label": "Great Win (3.50x)"
+        "multiplier": 2.0,
+        "probability": 0.16,
+        "label": "Solid Win (2.00x)"
       },
       {
-        "multiplier": 10.0,
-        "probability": 0.01,
-        "label": "Epic Win (10.00x)"
+        "multiplier": 3.6,
+        "probability": 0.095,
+        "label": "Epic Win (3.60x)"
       },
       {
-        "multiplier": 50.0,
-        "probability": 0.005,
-        "label": "Gold Jackpot (50.00x)"
+        "multiplier": 6.5,
+        "probability": 0.025,
+        "label": "Carbon Prize (6.50x)"
       }
     ]
   }

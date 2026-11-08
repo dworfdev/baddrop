@@ -43,7 +43,20 @@ public class UserController {
         Map<String, Object> overview = new LinkedHashMap<>();
         overview.put("application", "BADDROP");
         overview.put("status", "RUNNING");
+        overview.put("depositAdminUsername", userService.getDepositAdminUsername());
         return overview;
+    }
+
+    /**
+     * Public deposit & withdrawal configuration endpoint.
+     */
+    @GetMapping("/api/config")
+    public Map<String, Object> getPublicConfig() {
+        Map<String, Object> config = new LinkedHashMap<>();
+        config.put("depositAdminUsername", userService.getDepositAdminUsername());
+        config.put("minDepositAmount", UserService.MIN_DEPOSIT_AMOUNT);
+        config.put("minWithdrawAmount", UserService.MIN_WITHDRAW_AMOUNT);
+        return config;
     }
 
     // 1a) Create user (POST) - sets balance=0, items=[]

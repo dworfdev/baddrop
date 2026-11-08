@@ -80,6 +80,7 @@
     const step2DepositAmountText = document.getElementById('step2DepositAmountText');
     const step2WithdrawAmountText = document.getElementById('step2WithdrawAmountText');
     const depositAddressText = document.getElementById('depositAddressText');
+    const depositAdminUsernameText = document.getElementById('depositAdminUsernameText');
     const copyAddressBox = document.getElementById('copyAddressBox');
     const copyDepositAddressBtn = document.getElementById('copyDepositAddressBtn');
     const depositTimerDisplay = document.getElementById('depositTimerDisplay');
@@ -251,6 +252,15 @@
         });
     }
 
+    async function loadAppConfig() {
+        try {
+            const config = await callApi('GET', '/api/config', null, false);
+            if (config && config.depositAdminUsername && depositAdminUsernameText) {
+                depositAdminUsernameText.textContent = config.depositAdminUsername;
+            }
+        } catch (_) {}
+    }
+
     // =========================================================================
     // SCREEN 1: CREATE USER & LOGIN FLOW
     // =========================================================================
@@ -266,6 +276,7 @@
         displayedBalance = 0;
         updateBalanceDisplay(currentUser.balance);
         updateProfileUI();
+        await loadAppConfig();
         await loadCasesCatalog();
         renderInventoryGrid();
         await syncTopRichLeaderboard();
@@ -704,6 +715,9 @@
             const session = await callApi('GET', `/api/users/balance/deposit/active?${query}`, null, false);
             userHasPendingTransaction = Boolean(session && session.hasPendingTransaction);
             userHasApprovedDeposit = Boolean(session && session.hasApprovedDeposit);
+            if (session && session.adminUsername && depositAdminUsernameText) {
+                depositAdminUsernameText.textContent = session.adminUsername;
+            }
             if (session && session.active && session.remainingSeconds > 0) {
                 activeDepositTxHash = session.txHash || null;
                 step2DepositAmountText.textContent = `$${Number(session.amount).toFixed(2)}`;
@@ -764,12 +778,12 @@
 
     copyAddressBox.addEventListener('click', copyDepositAddress);
 
-    // STEP 1 -> STEP 2 (DEPOSIT): Starts 15-min timer on backend (min $5.00 USDT, blocked if user already has PENDING tx)
+    // STEP 1 -> STEP 2 (DEPOSIT): Starts 15-min timer on backend (min $1.00 USDT, blocked if user already has PENDING tx)
     modalDepositBtn.addEventListener('click', async () => {
         try {
             const amount = Number(modalBalanceAmount.value);
-            if (!amount || amount < 5) {
-                showToast('Minimum deposit amount is $5.00 USDT', true);
+            if (!amount || amount < 1) {
+                showToast('Minimum deposit amount is $1.00 USDT', true);
                 return;
             }
             const session = await callApi('POST', '/api/users/balance/deposit/start', {
@@ -780,6 +794,9 @@
             activeDepositTxHash = session.txHash || null;
             step2DepositAmountText.textContent = `$${Number(session.amount).toFixed(2)}`;
             depositAddressText.textContent = session.address || 'UQCys13azAWTFuERWwjc_5sqKZxQEhJhbtGGaiyp2Sf55Hrg';
+            if (session.adminUsername && depositAdminUsernameText) {
+                depositAdminUsernameText.textContent = session.adminUsername;
+            }
             setWalletStep(2, 'DEPOSIT');
             startDepositCountdown(session.expiresAt, session.remainingSeconds);
         } catch (_) {}
@@ -802,11 +819,11 @@
         } catch (_) {}
     });
 
-    // STEP 1 -> STEP 2 (WITHDRAW): Validates min $10 USDT, min 1 approved deposit, & no PENDING tx before opening Withdraw Step 2
+    // STEP 1 -> STEP 2 (WITHDRAW): Validates min $2.50 USDT, min 1 approved deposit, & no PENDING tx before opening Withdraw Step 2
     modalWithdrawBtn.addEventListener('click', async () => {
         const amount = Number(modalBalanceAmount.value);
-        if (!amount || amount < 10) {
-            showToast('Minimum withdrawal amount is $10.00 USDT', true);
+        if (!amount || amount < 2.5) {
+            showToast('Minimum withdrawal amount is $2.50 USDT', true);
             return;
         }
         await checkAndRestoreActiveDeposit(false);
@@ -1085,6 +1102,7 @@
     // AUTO-RESTORE LOGGED-IN SESSION (e.g. WHEN EXITING FROM ADMIN PAGE)
     // =========================================================================
     (async function restoreSessionIfPresent() {
+        await loadAppConfig();
         const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
         if (!raw) return;
         try {

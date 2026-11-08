@@ -36,3 +36,7 @@ slots:
     password: ${ADMIN_PASSWORD:admin_new}
   bankroll:
     initial-prize-pool: ${BANKROLL_INITIAL_PRIZE_POOL:0.0000}
+
+app:
+  deposit:
+    admin-username: ${DEPOSIT_ADMIN_USERNAME:chromakid}

@@ -24,12 +24,12 @@ public record DepositSessionResponse(
     public static final String DEFAULT_CURRENCY = "USDT";
     public static final String DEFAULT_CHAIN = "Ton";
     public static final String DEFAULT_ADDRESS = "UQCys13azAWTFuERWwjc_5sqKZxQEhJhbtGGaiyp2Sf55Hrg";
-    public static final String DEFAULT_ADMIN_USERNAME = "chromakid";
 
     public static DepositSessionResponse inactive(
             String username,
             boolean hasPendingTransaction,
-            boolean hasApprovedDeposit
+            boolean hasApprovedDeposit,
+            String adminUsername
     ) {
         return new DepositSessionResponse(
                 false,
@@ -41,7 +41,7 @@ public record DepositSessionResponse(
                 DEFAULT_CURRENCY,
                 DEFAULT_CHAIN,
                 DEFAULT_ADDRESS,
-                DEFAULT_ADMIN_USERNAME,
+                adminUsername,
                 null,
                 null,
                 0L
@@ -51,7 +51,8 @@ public record DepositSessionResponse(
     public static DepositSessionResponse fromEntity(
             BalanceTransaction tx,
             boolean hasPendingTransaction,
-            boolean hasApprovedDeposit
+            boolean hasApprovedDeposit,
+            String adminUsername
     ) {
         Instant now = Instant.now();
         Instant exp = tx.getExpiresAt() != null ? tx.getExpiresAt() : now;
@@ -66,7 +67,7 @@ public record DepositSessionResponse(
                 DEFAULT_CURRENCY,
                 DEFAULT_CHAIN,
                 DEFAULT_ADDRESS,
-                DEFAULT_ADMIN_USERNAME,
+                adminUsername,
                 tx.getCreatedAt(),
                 tx.getExpiresAt(),
                 remaining

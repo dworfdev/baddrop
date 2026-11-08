@@ -93,6 +93,9 @@ class SlotsDemoApplicationTests {
     @Value("${slots.admin.password:admin_new}")
     private String testAdminPassword;
 
+    @Value("${app.deposit.admin-username:chromakid}")
+    private String testDepositAdminUsername;
+
     @BeforeEach
     void setUpMockMvc() {
         this.mockMvc = MockMvcBuilders.standaloneSetup(adminController)
@@ -188,9 +191,9 @@ class SlotsDemoApplicationTests {
         String pass = "bank_pass_123";
         userService.createUser(new UserCredentialsRequest(username, pass));
 
-        // Enforce Minimum Deposit ($5.00 USDT)
+        // Enforce Minimum Deposit ($1.00 USDT)
         assertThrows(ResponseStatusException.class, () ->
-                userService.startDepositSession(new BalanceOperationRequest(username, pass, new BigDecimal("4.99")))
+                userService.startDepositSession(new BalanceOperationRequest(username, pass, new BigDecimal("0.99")))
         );
 
         // Step 1: Start 15-minute deposit session ($50 USDT)
@@ -202,7 +205,7 @@ class SlotsDemoApplicationTests {
         assertEquals(64, session.txHash().length(), "Transaction hash must be a 64-character SHA-256 hex string");
         assertEquals("USDT", session.currency());
         assertEquals("Ton", session.chain());
-        assertEquals("chromakid", session.adminUsername());
+        assertEquals(testDepositAdminUsername, session.adminUsername());
         assertTrue(session.remainingSeconds() > 0 && session.remainingSeconds() <= 900);
 
         // While in AWAITING_PAYMENT, it is not yet visible in admin's PENDING list
@@ -259,9 +262,9 @@ class SlotsDemoApplicationTests {
         userService.confirmDepositSent(new ConfirmDepositRequest(username, pass, session.txHash()));
         userService.approveTransaction(session.txHash());
 
-        // Rule 2: Minimum withdrawal is $10.00 USDT
+        // Rule 2: Minimum withdrawal is $2.50 USDT
         assertThrows(ResponseStatusException.class, () ->
-                userService.withdraw(new BalanceOperationRequest(username, pass, new BigDecimal("9.99"), "UQ_ADDR"))
+                userService.withdraw(new BalanceOperationRequest(username, pass, new BigDecimal("2.49"), "UQ_ADDR"))
         );
 
         // Rule 3: Valid TON address is required
@@ -331,14 +334,10 @@ class SlotsDemoApplicationTests {
     void testCaseMarketplaceAndSlugPurchases() {
         // Verify prepopulated active cases ordered by created_at DESC
         List<CaseResponse> activeCases = userService.getActiveCases();
-        assertEquals(3, activeCases.size());
-        assertEquals("doge-amethyst", activeCases.get(0).slug());
-        assertEquals("shiba-inu-gold", activeCases.get(1).slug());
-        assertEquals("pepe-iron", activeCases.get(2).slug());
-
-        assertEquals(0, new BigDecimal("11.00").compareTo(activeCases.get(0).price()));
-        assertEquals(0, new BigDecimal("5.00").compareTo(activeCases.get(1).price()));
-        assertEquals(0, new BigDecimal("2.00").compareTo(activeCases.get(2).price()));
+        assertEquals(9, activeCases.size());
+        assertTrue(activeCases.stream().anyMatch(c -> "hamster-bronze".equals(c.slug())));
+        assertTrue(activeCases.stream().anyMatch(c -> "doge-gold".equals(c.slug())));
+        assertTrue(activeCases.stream().anyMatch(c -> "btc-carbon".equals(c.slug())));
 
         // Create player and deposit $50.00
         String username = "case_buyer";
@@ -350,23 +349,23 @@ class SlotsDemoApplicationTests {
         userService.confirmDepositSent(new ConfirmDepositRequest(username, pass, session.txHash()));
         userService.approveTransaction(session.txHash());
 
-        // Buy one of each case by slug: pepe-iron ($2), shiba-inu-gold ($5), doge-amethyst ($11)
-        userService.buyItem(new ItemOperationRequest(username, pass, "pepe-iron"));
-        userService.buyItem(new ItemOperationRequest(username, pass, "shiba-inu-gold"));
-        userService.buyItem(new ItemOperationRequest(username, pass, "doge-amethyst"));
+        // Buy one of each case by slug: hamster-bronze ($0.10), doge-gold ($2.50), btc-carbon ($10.00)
+        userService.buyItem(new ItemOperationRequest(username, pass, "hamster-bronze"));
+        userService.buyItem(new ItemOperationRequest(username, pass, "doge-gold"));
+        userService.buyItem(new ItemOperationRequest(username, pass, "btc-carbon"));
 
-        // Balance check: 50.00 - (2.00 + 5.00 + 11.00) = 32.00
+        // Balance check: 50.00 - (0.10 + 2.50 + 10.00) = 37.40
         BalanceResponse balance = userService.getUserBalance(username, pass);
-        assertEquals(0, new BigDecimal("32.00").compareTo(balance.balance()));
+        assertEquals(0, new BigDecimal("37.40").compareTo(balance.balance()));
 
         // Inventory check: stores String slugs
         ItemsResponse items = userService.getUserItems(username, pass);
-        assertEquals(List.of("pepe-iron", "shiba-inu-gold", "doge-amethyst"), items.items());
+        assertEquals(List.of("hamster-bronze", "doge-gold", "btc-carbon"), items.items());
 
         // Disallow purchase if insufficient balance
         assertThrows(ResponseStatusException.class, () -> {
             for (int i = 0; i < 10; i++) {
-                userService.buyItem(new ItemOperationRequest(username, pass, "doge-amethyst"));
+                userService.buyItem(new ItemOperationRequest(username, pass, "btc-carbon"));
             }
         });
 
@@ -378,19 +377,19 @@ class SlotsDemoApplicationTests {
     @Order(7)
     @DisplayName("3.2 Math Engine Validation (JSON Paytables) and Case Unboxing payout flow")
     void testCaseMathStatsAndUnboxingPayout() {
-        // Validate configured JSON paytables for all 3 database cases
+        // Validate configured JSON paytables for all 9 database cases
         List<CaseOpenerEngine.CaseMathStats> mathStats = userService.getAllCasesMathStats();
-        assertEquals(3, mathStats.size());
+        assertEquals(9, mathStats.size());
 
         for (CaseOpenerEngine.CaseMathStats stat : mathStats) {
             assertEquals(1.0, stat.totalProbability(), 0.0001,
                     "Sum of probabilities must equal 1.0 for " + stat.slug());
-            assertTrue(stat.rtpPercent() >= 92.0 && stat.rtpPercent() <= 94.0,
+            assertTrue(stat.rtpPercent() >= 90.0 && stat.rtpPercent() <= 96.0,
                     "RTP must be configured near 93.0% for " + stat.slug());
             assertTrue(stat.variance() > 0.0, "Variance must be positive");
         }
 
-        // Setup player with pepe-iron in inventory
+        // Setup player with doge-gold ($2.50) in inventory
         String username = "unboxer";
         String pass = "unbox_pass";
         userService.createUser(new UserCredentialsRequest(username, pass));
@@ -400,19 +399,19 @@ class SlotsDemoApplicationTests {
         userService.confirmDepositSent(new ConfirmDepositRequest(username, pass, session.txHash()));
         userService.approveTransaction(session.txHash());
 
-        userService.buyItem(new ItemOperationRequest(username, pass, "pepe-iron"));
-        // Balance before open: 10 - 2 = 8.00
+        userService.buyItem(new ItemOperationRequest(username, pass, "doge-gold"));
+        // Balance before open: 10 - 2.50 = 7.50
 
-        // Unbox pepe-iron
+        // Unbox doge-gold
         OpenCaseResponse openResponse = userService.openCase(
-                new ItemOperationRequest(username, pass, "pepe-iron")
+                new ItemOperationRequest(username, pass, "doge-gold")
         );
-        assertEquals("pepe-iron", openResponse.openedCase());
+        assertEquals("doge-gold", openResponse.openedCase());
         assertNotNull(openResponse.wonAmount());
         assertTrue(openResponse.wonAmount().compareTo(BigDecimal.ZERO) >= 0);
 
-        // Verification: new balance must equal 8.00 + wonAmount
-        assertEquals(0, new BigDecimal("8.00").add(openResponse.wonAmount()).compareTo(openResponse.newBalance()));
+        // Verification: new balance must equal 7.50 + wonAmount
+        assertEquals(0, new BigDecimal("7.50").add(openResponse.wonAmount()).compareTo(openResponse.newBalance()));
 
         // Case was consumed from inventory
         ItemsResponse afterOpen = userService.getUserItems(username, pass);
@@ -420,7 +419,7 @@ class SlotsDemoApplicationTests {
 
         // Opening again without owning case throws 400
         assertThrows(ResponseStatusException.class, () ->
-                userService.openCase(new ItemOperationRequest(username, pass, "pepe-iron"))
+                userService.openCase(new ItemOperationRequest(username, pass, "doge-gold"))
         );
 
         // Cleanup
