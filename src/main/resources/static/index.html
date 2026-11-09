@@ -10,7 +10,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css?v=17" />
+    <link rel="stylesheet" href="/styles.css?v=20" />
 </head>
 
 <body>
@@ -391,6 +391,7 @@
     <!-- =================================================================== -->
     <div id="caseOpeningOverlay" class="case-opening-overlay">
         <div id="caseTapStage" class="case-tap-stage active">
+            <div id="caseLightRays" class="case-light-rays" aria-hidden="true"></div>
             <img id="caseTapImage" src="" alt="Case" class="case-tap-img" />
             <div id="caseTapPrompt" class="case-tap-text">Tap!</div>
         </div>
@@ -403,7 +404,7 @@
         <div class="modal-card case-outcome-card">
             <h3 id="caseOutcomeTitle" class="case-outcome-title">You won</h3>
             <div class="case-outcome-body">
-                <div class="case-outcome-amount" id="caseOutcomeUsdtAmount">+$0.00 USDT</div>
+                <div class="case-outcome-amount" id="caseOutcomeUsdtAmount">$0.00</div>
             </div>
             <div class="modal-actions single">
                 <button id="caseOutcomeOkBtn" type="button" class="pill-btn-primary">OK</button>
@@ -412,7 +413,7 @@
     </div>
 
     <div id="toastContainer" class="toast-container"></div>
-    <script src="/app.js?v=16"></script>
+    <script src="/app.js?v=19"></script>
 </body>
 
 </html>

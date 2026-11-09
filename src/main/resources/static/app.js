@@ -110,12 +110,14 @@
 
     const caseOpeningOverlay = document.getElementById('caseOpeningOverlay');
     const caseTapStage = document.getElementById('caseTapStage');
+    const caseLightRays = document.getElementById('caseLightRays');
     const caseTapImage = document.getElementById('caseTapImage');
 
     const caseOutcomeModal = document.getElementById('caseOutcomeModal');
     const caseOutcomeTitle = document.getElementById('caseOutcomeTitle');
     const caseOutcomeOkBtn = document.getElementById('caseOutcomeOkBtn');
     const caseOutcomeUsdtAmount = document.getElementById('caseOutcomeUsdtAmount');
+    const caseOutcomeBody = caseOutcomeModal ? caseOutcomeModal.querySelector('.case-outcome-body') : null;
 
     const toastContainer = document.getElementById('toastContainer');
 
@@ -546,14 +548,78 @@
     let pendingOpenCrate = null;
     let currentTapCount = 0;
     let isResolvingCaseOpen = false;
+    let activePayoutRafId = null;
+
+    const BASE_RAY_ANGLES = [-68, 24, 114, -146, 162];
+
+    function spawnCaseLightRay(tapIndex) {
+        if (!caseLightRays) return;
+        const baseAngle = BASE_RAY_ANGLES[(tapIndex - 1) % BASE_RAY_ANGLES.length];
+        const jitter = (Math.random() * 14 - 7).toFixed(1);
+        const angle = (baseAngle + Number(jitter)).toFixed(1);
+
+        const ray = document.createElement('div');
+        ray.className = 'case-light-ray';
+        ray.style.setProperty('--ray-angle', `${angle}deg`);
+        caseLightRays.appendChild(ray);
+
+        const glowRadius = 24 + tapIndex * 8;
+        caseTapImage.style.filter = `drop-shadow(0 14px 30px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 ${glowRadius}px rgba(250, 255, 130, 0.65))`;
+    }
+
+    function animatePayoutRollUp(targetAmount, durationMs = 1350) {
+        return new Promise((resolve) => {
+            if (activePayoutRafId) {
+                cancelAnimationFrame(activePayoutRafId);
+                activePayoutRafId = null;
+            }
+
+            const finalValue = Math.max(0, Number(targetAmount) || 0);
+            caseOutcomeUsdtAmount.textContent = '$0.00';
+
+            if (finalValue === 0) {
+                resolve();
+                return;
+            }
+
+            const startTime = performance.now();
+            function tick(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / durationMs, 1);
+                // Strong quartic ease-out: rapid initial climb that smoothly decelerates to the exact payout
+                const eased = 1 - Math.pow(1 - progress, 4);
+                const currentVal = finalValue * eased;
+
+                if (progress < 1) {
+                    caseOutcomeUsdtAmount.textContent = `$${currentVal.toFixed(2)}`;
+                    activePayoutRafId = requestAnimationFrame(tick);
+                } else {
+                    caseOutcomeUsdtAmount.textContent = `$${finalValue.toFixed(2)}`;
+                    activePayoutRafId = null;
+                    resolve();
+                }
+            }
+
+            activePayoutRafId = requestAnimationFrame(tick);
+        });
+    }
 
     function startInteractiveCaseOpening(crate) {
         pendingOpenCrate = crate;
         currentTapCount = 0;
         isResolvingCaseOpen = false;
+        if (activePayoutRafId) {
+            cancelAnimationFrame(activePayoutRafId);
+            activePayoutRafId = null;
+        }
 
+        if (caseLightRays) {
+            caseLightRays.innerHTML = '';
+        }
         caseTapImage.src = crate.imageUrl;
+        caseTapImage.style.filter = '';
         caseTapImage.classList.remove('shake');
+        caseTapStage.classList.remove('fade-out-stage');
         caseTapStage.classList.add('active');
         caseOpeningOverlay.classList.remove('fading-out');
         caseOpeningOverlay.classList.add('open');
@@ -568,11 +634,13 @@
             void caseTapImage.offsetWidth;
             caseTapImage.classList.add('shake');
 
+            spawnCaseLightRay(currentTapCount);
+
             if (currentTapCount < 5) {
                 return;
             }
 
-            // 5th tap reached -> resolve backend case opening and fade transition to win window
+            // 5th tap reached -> resolve backend case opening and simultaneously fade out case + all 5 rays
             isResolvingCaseOpen = true;
             const crateToOpen = pendingOpenCrate;
 
@@ -583,12 +651,15 @@
                         password: currentUser.password,
                         item: crateToOpen.slug
                     }),
-                    new Promise(r => setTimeout(r, 220))
+                    new Promise(r => setTimeout(r, 260))
                 ]);
 
+                // Simultaneous smooth fade-out of case image and all 5 accumulated light rays
+                caseTapStage.classList.add('fade-out-stage');
                 caseOpeningOverlay.classList.add('fading-out');
-                await new Promise(r => setTimeout(r, 300));
+                await new Promise(r => setTimeout(r, 420));
                 caseOpeningOverlay.classList.remove('open', 'fading-out');
+                caseTapStage.classList.remove('fade-out-stage');
 
                 const won = Number(res.wonAmount) || 0;
                 const isJackpot = Boolean(res.jackpot) || res.outcomeTier === 'Jackpot Cap';
@@ -601,13 +672,52 @@
                     if (caseOutcomeTitle) {
                         caseOutcomeTitle.textContent = isJackpot ? 'Jackpot!' : 'You won';
                         caseOutcomeTitle.classList.toggle('jackpot', isJackpot);
+                        caseOutcomeTitle.classList.remove('reveal-visible');
+                        caseOutcomeTitle.classList.add('reveal-hidden');
                     }
-                    caseOutcomeUsdtAmount.textContent = won > 0 ? `+$${won.toFixed(2)} USDT` : `$0.00 USDT`;
+                    if (caseOutcomeBody) {
+                        caseOutcomeBody.classList.remove('reveal-visible');
+                        caseOutcomeBody.classList.add('reveal-hidden');
+                    }
+                    caseOutcomeUsdtAmount.textContent = '$0.00';
                     caseOutcomeUsdtAmount.classList.toggle('jackpot', isJackpot);
+                    caseOutcomeUsdtAmount.classList.remove('reveal-visible');
+                    caseOutcomeUsdtAmount.classList.add('reveal-hidden');
+
+                    if (caseOutcomeOkBtn) {
+                        caseOutcomeOkBtn.classList.remove('ok-btn-visible');
+                        caseOutcomeOkBtn.classList.add('ok-btn-hidden');
+                    }
+
                     caseOutcomeModal.classList.add('open');
+
+                    // Smoothly fade in the win payout text display reading '$0.00'
+                    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+                    if (caseOutcomeTitle) {
+                        caseOutcomeTitle.classList.remove('reveal-hidden');
+                        caseOutcomeTitle.classList.add('reveal-visible');
+                    }
+                    if (caseOutcomeBody) {
+                        caseOutcomeBody.classList.remove('reveal-hidden');
+                        caseOutcomeBody.classList.add('reveal-visible');
+                    }
+                    caseOutcomeUsdtAmount.classList.remove('reveal-hidden');
+                    caseOutcomeUsdtAmount.classList.add('reveal-visible');
+
+                    await new Promise(r => setTimeout(r, 340));
+
+                    // Roll up from $0.00 with smooth ease-out deceleration to exact win amount
+                    await animatePayoutRollUp(won, 1350);
+
+                    // Once counting stops, smoothly fade in the 'OK' confirmation button
+                    if (caseOutcomeOkBtn) {
+                        caseOutcomeOkBtn.classList.remove('ok-btn-hidden');
+                        caseOutcomeOkBtn.classList.add('ok-btn-visible');
+                    }
                 }
             } catch (_) {
                 caseOpeningOverlay.classList.remove('open', 'fading-out');
+                caseTapStage.classList.remove('fade-out-stage');
             } finally {
                 isResolvingCaseOpen = false;
                 pendingOpenCrate = null;
