@@ -78,13 +78,22 @@ public class CaseOpenerEngine {
         if (tiers == null || tiers.isEmpty()) {
             throw new IllegalArgumentException("Paytable tiers must not be empty");
         }
+        BigDecimal floorMax = BankrollSplit.floorThreshold(caseCost);
         return tiers.stream()
-                .map(t -> new Outcome(
-                        t.multiplier(),
-                        caseCost.multiply(t.multiplier()).setScale(2, RoundingMode.HALF_UP),
-                        t.probability(),
-                        t.label()
-                ))
+                .map(t -> {
+                    BigDecimal rawWin = caseCost.multiply(t.multiplier());
+                    BigDecimal roundedWin = rawWin.setScale(2, RoundingMode.HALF_UP);
+                    if (t.multiplier().compareTo(BankrollSplit.FLOOR_RATE) <= 0
+                            && roundedWin.compareTo(floorMax) > 0) {
+                        roundedWin = rawWin.setScale(2, RoundingMode.DOWN);
+                    }
+                    return new Outcome(
+                            t.multiplier(),
+                            roundedWin,
+                            t.probability(),
+                            t.label()
+                    );
+                })
                 .toList();
     }
 
@@ -96,7 +105,7 @@ public class CaseOpenerEngine {
     }
 
     /**
-     * Verifies the mathematical integrity (PMF = 1.0 and presence of at least one floor item) of a paytable.
+     * Verifies the mathematical integrity (PMF = 1.0 and presence of at least one floor item with multiplier <= 0.33) of a paytable.
      */
     public boolean validateMathematics(String slug, BigDecimal caseCost, List<Outcome> paytable) {
         CaseMathStats stats = calculateStats(slug, caseCost, paytable);
@@ -105,10 +114,10 @@ public class CaseOpenerEngine {
             return false;
         }
         boolean hasFloorItem = paytable.stream()
-                .anyMatch(o -> o.probability() > 0.0 && BankrollSplit.isFloorValue(caseCost, o.winAmount()));
+                .anyMatch(o -> o.probability() > 0.0 && o.multiplier().compareTo(BankrollSplit.FLOOR_RATE) <= 0);
         if (!hasFloorItem) {
-            System.err.println("CRITICAL ERROR: Case " + slug + " lacks a floor item (<= "
-                    + BankrollSplit.floorThreshold(caseCost).toPlainString() + ")");
+            System.err.println("CRITICAL ERROR: Case " + slug + " lacks a floor item (multiplier <= "
+                    + BankrollSplit.FLOOR_RATE.toPlainString() + ")");
             return false;
         }
         return true;

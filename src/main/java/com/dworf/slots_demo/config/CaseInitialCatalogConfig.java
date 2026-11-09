@@ -2,6 +2,7 @@ package com.dworf.slots_demo.config;
 
 import com.dworf.slots_demo.entity.CaseEntity;
 import com.dworf.slots_demo.repository.CaseRepository;
+import com.dworf.slots_demo.service.BankrollSplit;
 import com.dworf.slots_demo.service.CaseOpenerEngine;
 import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Configuration;
@@ -71,6 +72,14 @@ public class CaseInitialCatalogConfig {
             }
 
             String paytableJson = objectMapper.writeValueAsString(seed.paytable());
+            boolean hasFloorMultiplier = seed.paytable() != null && seed.paytable().stream()
+                    .anyMatch(t -> t.probability() > 0.0
+                            && t.multiplier() != null
+                            && t.multiplier().compareTo(BankrollSplit.FLOOR_RATE) <= 0);
+            if (!hasFloorMultiplier) {
+                throw new IllegalStateException("CRITICAL ERROR: Case " + seed.slug()
+                        + " lacks a floor item (multiplier <= " + BankrollSplit.FLOOR_RATE.toPlainString() + ")");
+            }
             List<CaseOpenerEngine.Outcome> outcomes = caseOpenerEngine.toOutcomes(seed.price(), seed.paytable());
             if (!caseOpenerEngine.validateMathematics(seed.slug(), seed.price(), outcomes)) {
                 throw new IllegalStateException("Mathematical validation failed for initial case: " + seed.slug());
