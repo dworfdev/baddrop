@@ -10,7 +10,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css?v=16" />
+    <link rel="stylesheet" href="/styles.css?v=17" />
 </head>
 
 <body>
@@ -63,9 +63,9 @@
                 <!-- TAB 1: GAMES VIEW                                       -->
                 <!-- ======================================================= -->
                 <section id="tab-game" class="tab-view active">
-                    <!-- Main Top Banner (2007 x 783) -->
+                    <!-- Main Top Banner (960 x 720) -->
                     <div id="featuredBanner" class="featured-game-banner">
-                        <img id="bannerImg" src="/imgs/main-top-banner-demo.png" alt="Welcome, demo is right here"
+                        <img id="bannerImg" src="/imgs/main-top-banner.png" alt="Cases on marketplace are available now"
                             class="banner-image" />
                     </div>
 
@@ -82,17 +82,12 @@
 
                     <h2 class="section-heading">Games</h2>
 
-                    <!-- 2 Game Buttons: Cases & Upgrader (2141 x 734 each) -->
+                    <!-- Game Button: Cases (960 x 720) -->
                     <div class="games-grid">
                         <button id="openCasesPageBtn" type="button" class="game-mock-card" data-game="Cases">
                             <img src="/imgs/cases-banner.png" alt="Cases" class="game-card-image" />
                         </button>
-                        <button type="button" class="game-mock-card disabled-game" data-game="Upgrader" disabled>
-                            <img src="/imgs/upgrader-banner.png" alt="Upgrader" class="game-card-image" />
-                            <div class="unavailable-overlay">
-                                <span>Unavailable for now</span>
-                            </div>
-                        </button>
+                        <p class="more-games-hint">More options will be available later</p>
                     </div>
                 </section>
 
@@ -417,7 +412,7 @@
     </div>
 
     <div id="toastContainer" class="toast-container"></div>
-    <script src="/app.js?v=15"></script>
+    <script src="/app.js?v=16"></script>
 </body>
 
 </html>

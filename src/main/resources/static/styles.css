@@ -468,7 +468,7 @@ body {
 /* ========================================================================= */
 .featured-game-banner {
     width: 100%;
-    aspect-ratio: 2007 / 783;
+    aspect-ratio: 960 / 720;
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-panel);
     padding: 0;
@@ -558,14 +558,14 @@ body {
 .games-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 14px;
+    gap: 12px;
 }
 
 .game-mock-card {
     cursor: pointer;
     width: 100%;
     min-height: 44px;
-    aspect-ratio: 2141 / 734;
+    aspect-ratio: 960 / 720;
     background: var(--surface-solid);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-panel);
@@ -594,37 +594,18 @@ body {
     object-fit: cover;
 }
 
-.game-mock-card.disabled-game {
-    cursor: not-allowed;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
-}
-
-.game-mock-card.disabled-game .game-card-image {
-    filter: brightness(0.35) saturate(0.6);
-}
-
-.unavailable-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(14, 18, 26, 0.55);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-}
-
-.unavailable-overlay span {
-    font-family: var(--font-sans);
+.more-games-hint {
+    text-align: center;
+    font-family: var(--font-mono);
     font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.03em;
+    font-weight: 500;
     color: var(--text-muted);
-    background: rgba(26, 31, 44, 0.90);
-    border: 1px solid var(--border-subtle);
-    padding: 8px 16px;
-    border-radius: var(--radius-pill);
-    backdrop-filter: blur(8px);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+    padding: 4px 8px 2px;
+    letter-spacing: 0.02em;
+}
+
+.game-mock-card.disabled-game {
+    display: none !important;
 }
 
 /* ========================================================================= */
