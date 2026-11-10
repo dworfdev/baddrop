@@ -671,8 +671,98 @@
     const TOTAL_ROULETTE_SLOTS = 100;
     const WINNING_SLOT_INDEX = 96;
     const ROULETTE_SPIN_DURATION_MS = 6000;
+    const SLOT_TICK_SOUND_URL = '/audio/slot-key-sound.mp3';
+    const SLOT_AUDIO_POOL_SIZE = 8;
 
     let isResolvingCaseOpen = false;
+    let slotAudioCtx = null;
+    let slotAudioBuffer = null;
+    let slotAudioBufferLoading = false;
+    const slotAudioPool = [];
+    let slotAudioPoolIdx = 0;
+
+    function initSlotTickAudio() {
+        if (slotAudioPool.length === 0) {
+            for (let i = 0; i < SLOT_AUDIO_POOL_SIZE; i++) {
+                const audio = new Audio(SLOT_TICK_SOUND_URL);
+                audio.preload = 'auto';
+                audio.volume = 0.75;
+                slotAudioPool.push(audio);
+            }
+        }
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx && !slotAudioCtx) {
+            try {
+                slotAudioCtx = new AudioCtx();
+            } catch (_) {}
+        }
+        if (slotAudioCtx && slotAudioCtx.state === 'suspended') {
+            slotAudioCtx.resume().catch(() => {});
+        }
+        if (slotAudioCtx && !slotAudioBuffer && !slotAudioBufferLoading) {
+            slotAudioBufferLoading = true;
+            fetch(SLOT_TICK_SOUND_URL)
+                .then(r => r.arrayBuffer())
+                .then(buf => slotAudioCtx.decodeAudioData(buf))
+                .then(decoded => {
+                    slotAudioBuffer = decoded;
+                })
+                .catch(() => {})
+                .finally(() => {
+                    slotAudioBufferLoading = false;
+                });
+        }
+    }
+
+    function playSlotTickSound() {
+        try {
+            if (slotAudioCtx && slotAudioBuffer) {
+                if (slotAudioCtx.state === 'suspended') {
+                    slotAudioCtx.resume().catch(() => {});
+                }
+                const source = slotAudioCtx.createBufferSource();
+                const gainNode = slotAudioCtx.createGain();
+                gainNode.gain.value = 0.75;
+                source.buffer = slotAudioBuffer;
+                source.connect(gainNode);
+                gainNode.connect(slotAudioCtx.destination);
+                source.start(0);
+                return;
+            }
+        } catch (_) {}
+
+        try {
+            if (slotAudioPool.length === 0) {
+                initSlotTickAudio();
+            }
+            const audio = slotAudioPool[slotAudioPoolIdx];
+            slotAudioPoolIdx = (slotAudioPoolIdx + 1) % slotAudioPool.length;
+            audio.currentTime = 0;
+            const playPromise = audio.play();
+            if (playPromise && typeof playPromise.catch === 'function') {
+                playPromise.catch(() => {});
+            }
+        } catch (_) {}
+    }
+
+    function getTrackTranslateX(trackEl) {
+        const style = window.getComputedStyle(trackEl);
+        const transform = style.transform || style.webkitTransform || 'none';
+        if (!transform || transform === 'none') return 0;
+        if (typeof DOMMatrixReadOnly === 'function') {
+            try {
+                return new DOMMatrixReadOnly(transform).m41;
+            } catch (_) {}
+        }
+        const match = transform.match(/matrix\(([^)]+)\)/);
+        if (match && match[1]) {
+            const parts = match[1].split(',').map(s => parseFloat(s.trim()));
+            if (parts.length >= 6 && Number.isFinite(parts[4])) {
+                return parts[4];
+            }
+        }
+        return 0;
+    }
 
     function formatMultiplierLabel(multiplier) {
         const num = Number(multiplier);
@@ -799,6 +889,7 @@
         const isInstant = Boolean(options && options.instant);
         isResolvingCaseOpen = true;
         setSpinningLockState(true);
+        initSlotTickAudio();
 
         if (caseOutcomeModal) {
             caseOutcomeModal.classList.remove('open');
@@ -880,15 +971,37 @@
             const jitter = (Math.random() * 0.4 - 0.2) * cardWidth;
             const targetX = cardCenterPosition - viewportCenter + jitter;
 
-            // 5. Animate translateX(-targetX px) over 6s cubic-bezier(0.15, 0.9, 0.25, 1)
+            // 5. Animate translateX(-targetX px) over 6s cubic-bezier(0.15, 0.9, 0.25, 1) & play tick sound on each slot pass
             caseRouletteTrack.style.transition = 'transform 6s cubic-bezier(0.15, 0.9, 0.25, 1)';
             caseRouletteTrack.style.transform = `translateX(-${targetX}px)`;
 
             await new Promise((resolve) => {
                 let settled = false;
+                let rafId = null;
+                let lastSlotUnderCursor = Math.floor(viewportCenter / itemTotalWidth);
+
+                const trackSlotTicks = () => {
+                    if (settled) return;
+                    const currentTx = getTrackTranslateX(caseRouletteTrack);
+                    const scrollOffset = Math.max(0, -currentTx);
+                    const cursorTrackX = scrollOffset + viewportCenter;
+                    const currentSlotIdx = Math.floor(cursorTrackX / itemTotalWidth);
+
+                    if (currentSlotIdx > lastSlotUnderCursor) {
+                        lastSlotUnderCursor = currentSlotIdx;
+                        playSlotTickSound();
+                    }
+                    rafId = requestAnimationFrame(trackSlotTicks);
+                };
+
+                rafId = requestAnimationFrame(trackSlotTicks);
+
                 const finish = () => {
                     if (settled) return;
                     settled = true;
+                    if (rafId !== null) {
+                        cancelAnimationFrame(rafId);
+                    }
                     caseRouletteTrack.removeEventListener('transitionend', onTransitionEnd);
                     resolve();
                 };
