@@ -108,10 +108,12 @@
     const deleteAccountConfirmInput = document.getElementById('deleteAccountConfirmInput');
     const DELETE_ACCOUNT_AGREEMENT_SENTENCE = 'I agree to permanently delete my account';
 
-    const caseOpeningOverlay = document.getElementById('caseOpeningOverlay');
-    const caseTapStage = document.getElementById('caseTapStage');
-    const caseLightRays = document.getElementById('caseLightRays');
-    const caseTapImage = document.getElementById('caseTapImage');
+    const caseRouletteModal = document.getElementById('caseRouletteModal');
+    const caseRouletteStage = document.getElementById('caseRouletteStage');
+    const rouletteCaseName = document.getElementById('rouletteCaseName');
+    const rouletteStatusBadge = document.getElementById('rouletteStatusBadge');
+    const caseRouletteViewport = document.getElementById('caseRouletteViewport');
+    const caseRouletteTrack = document.getElementById('caseRouletteTrack');
 
     const caseOutcomeModal = document.getElementById('caseOutcomeModal');
     const caseOutcomeTitle = document.getElementById('caseOutcomeTitle');
@@ -543,191 +545,296 @@
     }
 
     // =========================================================================
-    // 5-TAP CASE OPENING SEQUENCE + FADE TRANSITION INTO OUTCOME WINDOW
+    // CS:GO / CSFAIL HORIZONTAL CAROUSEL REEL ROULETTE (100 SLOTS, INDEX 96 WIN)
     // =========================================================================
-    let pendingOpenCrate = null;
-    let currentTapCount = 0;
+    const TOTAL_ROULETTE_SLOTS = 100;
+    const WINNING_SLOT_INDEX = 96;
+    const ROULETTE_SPIN_DURATION_MS = 6000;
+
     let isResolvingCaseOpen = false;
-    let activePayoutRafId = null;
 
-    const BASE_RAY_ANGLES = [-68, 24, 114, -146, 162];
-
-    function spawnCaseLightRay(tapIndex) {
-        if (!caseLightRays) return;
-        const baseAngle = BASE_RAY_ANGLES[(tapIndex - 1) % BASE_RAY_ANGLES.length];
-        const jitter = (Math.random() * 14 - 7).toFixed(1);
-        const angle = (baseAngle + Number(jitter)).toFixed(1);
-
-        const ray = document.createElement('div');
-        ray.className = 'case-light-ray';
-        ray.style.setProperty('--ray-angle', `${angle}deg`);
-        caseLightRays.appendChild(ray);
-
-        const glowRadius = 24 + tapIndex * 8;
-        caseTapImage.style.filter = `drop-shadow(0 14px 30px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 ${glowRadius}px rgba(250, 255, 130, 0.65))`;
+    function formatMultiplierLabel(multiplier) {
+        const num = Number(multiplier);
+        if (!Number.isFinite(num) || num <= 0) return '0x';
+        const formatted = Number(num.toFixed(2));
+        return `${formatted}x`;
     }
 
-    function animatePayoutRollUp(targetAmount, durationMs = 1350) {
-        return new Promise((resolve) => {
-            if (activePayoutRafId) {
-                cancelAnimationFrame(activePayoutRafId);
-                activePayoutRafId = null;
+    const SLOT_TIER_BY_LABEL = {
+        'COMMON SCRAP': { className: 'tier-floor', tag: 'COMMON SCRAP' },
+        'MINOR RETURN': { className: 'tier-common', tag: 'MINOR RETURN' },
+        'NEAR EVEN': { className: 'tier-even', tag: 'NEAR EVEN' },
+        'SMALL WIN': { className: 'tier-profit', tag: 'SMALL WIN' },
+        'NICE WIN': { className: 'tier-rare', tag: 'NICE WIN' },
+        'TOP PRIZE': { className: 'tier-jackpot', tag: 'TOP PRIZE' }
+    };
+
+    function classifySlotTier(itemOrLabel) {
+        const rawLabel = typeof itemOrLabel === 'string'
+            ? itemOrLabel
+            : (itemOrLabel && typeof itemOrLabel.label === 'string' ? itemOrLabel.label : '');
+        const normalized = rawLabel.replace(/\s*\([^)]*\)\s*$/, '').trim().toUpperCase();
+        if (SLOT_TIER_BY_LABEL[normalized]) {
+            return SLOT_TIER_BY_LABEL[normalized];
+        }
+        return {
+            className: 'tier-floor',
+            tag: normalized || 'COMMON SCRAP'
+        };
+    }
+
+    function drawWeightedPaytableItem(paytable) {
+        const totalWeight = paytable.reduce((acc, item) => acc + (Number(item.probability) || 0), 0);
+        if (totalWeight <= 0) {
+            return paytable[Math.floor(Math.random() * paytable.length)];
+        }
+        let roll = Math.random() * totalWeight;
+        for (let i = 0; i < paytable.length; i++) {
+            roll -= Number(paytable[i].probability) || 0;
+            if (roll <= 0) {
+                return paytable[i];
+            }
+        }
+        return paytable[paytable.length - 1];
+    }
+
+    function buildRouletteTape(rawPaytable, winningMultiplier, winningTierLabel) {
+        const paytable = Array.isArray(rawPaytable) && rawPaytable.length > 0
+            ? rawPaytable
+            : [{ multiplier: winningMultiplier || 1, probability: 1.0, label: winningTierLabel || 'Win' }];
+
+        // Build indexes 0..95 (96 slots) weighted by paytable probabilities, then shuffle
+        const prefixCount = WINNING_SLOT_INDEX; // 96 slots (indices 0..95)
+        const weightedPrefix = [];
+
+        paytable.forEach(tier => {
+            const prob = Math.max(0, Number(tier.probability) || 0);
+            const exactCount = Math.floor(prob * prefixCount);
+            for (let i = 0; i < exactCount && weightedPrefix.length < prefixCount; i++) {
+                weightedPrefix.push({
+                    multiplier: Number(tier.multiplier),
+                    label: tier.label || ''
+                });
+            }
+        });
+
+        while (weightedPrefix.length < prefixCount) {
+            const picked = drawWeightedPaytableItem(paytable);
+            weightedPrefix.push({
+                multiplier: Number(picked.multiplier),
+                label: picked.label || ''
+            });
+        }
+
+        // Fisher-Yates shuffle on indexes 0..95 for natural weighted flow
+        for (let i = weightedPrefix.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const tmp = weightedPrefix[i];
+            weightedPrefix[i] = weightedPrefix[j];
+            weightedPrefix[j] = tmp;
+        }
+
+        const tape = new Array(TOTAL_ROULETTE_SLOTS);
+        for (let i = 0; i < WINNING_SLOT_INDEX; i++) {
+            tape[i] = weightedPrefix[i];
+        }
+
+        // Strictly place the predetermined winning item at index 96 (97th slot)
+        tape[WINNING_SLOT_INDEX] = {
+            multiplier: Number(winningMultiplier),
+            label: winningTierLabel || '',
+            isWinner: true
+        };
+
+        // Fill indexes 97..99 with random paytable items so strip never cuts off past the marker
+        for (let i = WINNING_SLOT_INDEX + 1; i < TOTAL_ROULETTE_SLOTS; i++) {
+            const picked = drawWeightedPaytableItem(paytable);
+            tape[i] = {
+                multiplier: Number(picked.multiplier),
+                label: picked.label || ''
+            };
+        }
+
+        return tape;
+    }
+
+    function setSpinningLockState(locked) {
+        const interactiveControls = document.querySelectorAll(
+            '[data-open-crate], #inventorySearchInput, #inventoryFilterBtn, .nav-tab, #openBalanceModalBtn'
+        );
+        interactiveControls.forEach(el => {
+            if (locked) {
+                el.classList.add('spinning-disabled');
+                if ('disabled' in el) el.disabled = true;
+            } else {
+                el.classList.remove('spinning-disabled');
+                if ('disabled' in el) el.disabled = false;
+            }
+        });
+    }
+
+    async function startInteractiveCaseOpening(crate) {
+        if (isResolvingCaseOpen || !crate) return;
+        isResolvingCaseOpen = true;
+        setSpinningLockState(true);
+
+        if (caseOutcomeModal) {
+            caseOutcomeModal.classList.remove('open');
+        }
+
+        try {
+            // 1. Backend execution: deduct crate & deterministically select winning outcome from paytable
+            const res = await callApi('POST', '/api/users/items/open', {
+                username: currentUser.username,
+                password: currentUser.password,
+                item: crate.slug
+            });
+
+            const wonAmount = Number(res.wonAmount) || 0;
+            const wonMultiplier = res.wonMultiplier !== undefined && res.wonMultiplier !== null
+                ? Number(res.wonMultiplier)
+                : (crate.price > 0 ? wonAmount / crate.price : 1);
+            const isJackpot = Boolean(res.jackpot) || res.outcomeTier === 'TOP PRIZE' || res.outcomeTier === 'Jackpot Cap';
+            const paytable = Array.isArray(res.paytable) ? res.paytable : [];
+
+            // Update inventory count immediately so opened crate is consumed visually
+            currentUser.items = Array.isArray(res.remainingItems) ? res.remainingItems : [];
+            renderInventoryGrid();
+            setSpinningLockState(true);
+
+            // 2. Construct 100-slot tape with winning outcome strictly at index 96
+            const tape = buildRouletteTape(paytable, wonMultiplier, res.outcomeTier);
+
+            if (rouletteCaseName) {
+                rouletteCaseName.textContent = crate.name || crate.slug;
+            }
+            if (rouletteStatusBadge) {
+                rouletteStatusBadge.textContent = 'SPINNING...';
+                rouletteStatusBadge.classList.remove('completed');
             }
 
-            const finalValue = Math.max(0, Number(targetAmount) || 0);
-            caseOutcomeUsdtAmount.textContent = '$0.00';
+            // 3. Mount 100 slot cards and open centered modal roulette overlay
+            caseRouletteTrack.style.transition = 'none';
+            caseRouletteTrack.style.transform = 'translateX(0px)';
+            caseRouletteTrack.innerHTML = '';
 
-            if (finalValue === 0) {
-                resolve();
-                return;
+            const fragment = document.createDocumentFragment();
+            tape.forEach((slot, idx) => {
+                const tierMeta = classifySlotTier(slot);
+                const slotEl = document.createElement('div');
+                slotEl.className = `roulette-slot-card ${tierMeta.className}`;
+                slotEl.dataset.slotIndex = String(idx);
+                slotEl.innerHTML = `
+                    <div class="roulette-slot-multiplier">${formatMultiplierLabel(slot.multiplier)}</div>
+                    <div class="roulette-slot-tag">${tierMeta.tag}</div>
+                `;
+                fragment.appendChild(slotEl);
+            });
+            caseRouletteTrack.appendChild(fragment);
+
+            if (caseRouletteModal) {
+                caseRouletteModal.classList.add('open');
             }
 
-            const startTime = performance.now();
-            function tick(now) {
-                const elapsed = now - startTime;
-                const progress = Math.min(elapsed / durationMs, 1);
-                // Strong quartic ease-out: rapid initial climb that smoothly decelerates to the exact payout
-                const eased = 1 - Math.pow(1 - progress, 4);
-                const currentVal = finalValue * eased;
+            // 4. Measure unscaled container width, size 5 visible cards, trigger reflow & compute exact targetX
+            void caseRouletteViewport.offsetWidth;
 
-                if (progress < 1) {
-                    caseOutcomeUsdtAmount.textContent = `$${currentVal.toFixed(2)}`;
-                    activePayoutRafId = requestAnimationFrame(tick);
-                } else {
-                    caseOutcomeUsdtAmount.textContent = `$${finalValue.toFixed(2)}`;
-                    activePayoutRafId = null;
+            const W = WINNING_SLOT_INDEX;
+            const rouletteContainerWidth = caseRouletteViewport.clientWidth;
+            const computedStyle = window.getComputedStyle(caseRouletteTrack);
+            const gap = parseFloat(computedStyle.gap || computedStyle.columnGap || '8') || 8;
+            const cardWidth = (rouletteContainerWidth - (4 * gap)) / 5;
+
+            caseRouletteTrack.style.setProperty('--roulette-card-width', `${cardWidth}px`);
+            void caseRouletteTrack.offsetWidth;
+
+            const itemTotalWidth = cardWidth + gap;
+            const cardCenterPosition = (W * itemTotalWidth) + (cardWidth / 2);
+            const viewportCenter = rouletteContainerWidth / 2;
+            const jitter = (Math.random() * 0.4 - 0.2) * cardWidth;
+            const targetX = cardCenterPosition - viewportCenter + jitter;
+
+            // 5. Animate translateX(-targetX px) over 6s cubic-bezier(0.15, 0.9, 0.25, 1)
+            caseRouletteTrack.style.transition = 'transform 6s cubic-bezier(0.15, 0.9, 0.25, 1)';
+            caseRouletteTrack.style.transform = `translateX(-${targetX}px)`;
+
+            await new Promise((resolve) => {
+                let settled = false;
+                const finish = () => {
+                    if (settled) return;
+                    settled = true;
+                    caseRouletteTrack.removeEventListener('transitionend', onTransitionEnd);
                     resolve();
+                };
+                const onTransitionEnd = (e) => {
+                    if (e.target === caseRouletteTrack && e.propertyName === 'transform') {
+                        finish();
+                    }
+                };
+                caseRouletteTrack.addEventListener('transitionend', onTransitionEnd);
+                setTimeout(finish, ROULETTE_SPIN_DURATION_MS + 80);
+            });
+
+            // 6. Highlight winning slot 96, sync balance & leaderboard, unlock UI, and fade in win modal
+            const winningSlotEl = caseRouletteTrack.children[WINNING_SLOT_INDEX];
+            if (winningSlotEl) {
+                winningSlotEl.classList.add('winning-slot-highlight');
+            }
+            if (rouletteStatusBadge) {
+                rouletteStatusBadge.textContent = `WON ${formatMultiplierLabel(wonMultiplier)}`;
+                rouletteStatusBadge.classList.add('completed');
+            }
+
+            updateBalanceDisplay(res.newBalance);
+            await syncTopRichLeaderboard();
+            await new Promise(r => setTimeout(r, 280));
+
+            if (caseRouletteModal) {
+                caseRouletteModal.classList.remove('open');
+            }
+            setSpinningLockState(false);
+
+            if (caseOutcomeModal) {
+                if (caseOutcomeTitle) {
+                    caseOutcomeTitle.textContent = isJackpot ? 'Jackpot!' : 'You won';
+                    caseOutcomeTitle.classList.toggle('jackpot', isJackpot);
+                    caseOutcomeTitle.classList.remove('reveal-hidden');
+                    caseOutcomeTitle.classList.add('reveal-visible');
                 }
-            }
-
-            activePayoutRafId = requestAnimationFrame(tick);
-        });
-    }
-
-    function startInteractiveCaseOpening(crate) {
-        pendingOpenCrate = crate;
-        currentTapCount = 0;
-        isResolvingCaseOpen = false;
-        if (activePayoutRafId) {
-            cancelAnimationFrame(activePayoutRafId);
-            activePayoutRafId = null;
-        }
-
-        if (caseLightRays) {
-            caseLightRays.innerHTML = '';
-        }
-        caseTapImage.src = crate.imageUrl;
-        caseTapImage.style.filter = '';
-        caseTapImage.classList.remove('shake');
-        caseTapStage.classList.remove('fade-out-stage');
-        caseTapStage.classList.add('active');
-        caseOpeningOverlay.classList.remove('fading-out');
-        caseOpeningOverlay.classList.add('open');
-    }
-
-    if (caseTapStage) {
-        caseTapStage.addEventListener('click', async () => {
-            if (!pendingOpenCrate || isResolvingCaseOpen) return;
-
-            currentTapCount++;
-            caseTapImage.classList.remove('shake');
-            void caseTapImage.offsetWidth;
-            caseTapImage.classList.add('shake');
-
-            spawnCaseLightRay(currentTapCount);
-
-            if (currentTapCount < 5) {
-                return;
-            }
-
-            // 5th tap reached -> resolve backend case opening and simultaneously fade out case + all 5 rays
-            isResolvingCaseOpen = true;
-            const crateToOpen = pendingOpenCrate;
-
-            try {
-                const [res] = await Promise.all([
-                    callApi('POST', '/api/users/items/open', {
-                        username: currentUser.username,
-                        password: currentUser.password,
-                        item: crateToOpen.slug
-                    }),
-                    new Promise(r => setTimeout(r, 260))
-                ]);
-
-                // Simultaneous smooth fade-out of case image and all 5 accumulated light rays
-                caseTapStage.classList.add('fade-out-stage');
-                caseOpeningOverlay.classList.add('fading-out');
-                await new Promise(r => setTimeout(r, 420));
-                caseOpeningOverlay.classList.remove('open', 'fading-out');
-                caseTapStage.classList.remove('fade-out-stage');
-
-                const won = Number(res.wonAmount) || 0;
-                const isJackpot = Boolean(res.jackpot) || res.outcomeTier === 'Jackpot Cap';
-                currentUser.items = Array.isArray(res.remainingItems) ? res.remainingItems : [];
-                updateBalanceDisplay(res.newBalance);
-                renderInventoryGrid();
-                await syncTopRichLeaderboard();
-
-                if (caseOutcomeModal) {
-                    if (caseOutcomeTitle) {
-                        caseOutcomeTitle.textContent = isJackpot ? 'Jackpot!' : 'You won';
-                        caseOutcomeTitle.classList.toggle('jackpot', isJackpot);
-                        caseOutcomeTitle.classList.remove('reveal-visible');
-                        caseOutcomeTitle.classList.add('reveal-hidden');
-                    }
-                    if (caseOutcomeBody) {
-                        caseOutcomeBody.classList.remove('reveal-visible');
-                        caseOutcomeBody.classList.add('reveal-hidden');
-                    }
-                    caseOutcomeUsdtAmount.textContent = '$0.00';
-                    caseOutcomeUsdtAmount.classList.toggle('jackpot', isJackpot);
-                    caseOutcomeUsdtAmount.classList.remove('reveal-visible');
-                    caseOutcomeUsdtAmount.classList.add('reveal-hidden');
-
-                    if (caseOutcomeOkBtn) {
-                        caseOutcomeOkBtn.classList.remove('ok-btn-visible');
-                        caseOutcomeOkBtn.classList.add('ok-btn-hidden');
-                    }
-
-                    caseOutcomeModal.classList.add('open');
-
-                    // Smoothly fade in the win payout text display reading '$0.00'
-                    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-                    if (caseOutcomeTitle) {
-                        caseOutcomeTitle.classList.remove('reveal-hidden');
-                        caseOutcomeTitle.classList.add('reveal-visible');
-                    }
-                    if (caseOutcomeBody) {
-                        caseOutcomeBody.classList.remove('reveal-hidden');
-                        caseOutcomeBody.classList.add('reveal-visible');
-                    }
-                    caseOutcomeUsdtAmount.classList.remove('reveal-hidden');
-                    caseOutcomeUsdtAmount.classList.add('reveal-visible');
-
-                    await new Promise(r => setTimeout(r, 340));
-
-                    // Roll up from $0.00 with smooth ease-out deceleration to exact win amount
-                    await animatePayoutRollUp(won, 1350);
-
-                    // Once counting stops, smoothly fade in the 'OK' confirmation button
-                    if (caseOutcomeOkBtn) {
-                        caseOutcomeOkBtn.classList.remove('ok-btn-hidden');
-                        caseOutcomeOkBtn.classList.add('ok-btn-visible');
-                    }
+                if (caseOutcomeBody) {
+                    caseOutcomeBody.classList.remove('reveal-hidden');
+                    caseOutcomeBody.classList.add('reveal-visible');
                 }
-            } catch (_) {
-                caseOpeningOverlay.classList.remove('open', 'fading-out');
-                caseTapStage.classList.remove('fade-out-stage');
-            } finally {
-                isResolvingCaseOpen = false;
-                pendingOpenCrate = null;
+                caseOutcomeUsdtAmount.textContent = wonAmount > 0
+                    ? `+$${wonAmount.toFixed(2)} USDT (${formatMultiplierLabel(wonMultiplier)})`
+                    : `$0.00 USDT`;
+                caseOutcomeUsdtAmount.classList.toggle('jackpot', isJackpot);
+                caseOutcomeUsdtAmount.classList.remove('reveal-hidden');
+                caseOutcomeUsdtAmount.classList.add('reveal-visible');
+
+                if (caseOutcomeOkBtn) {
+                    caseOutcomeOkBtn.classList.remove('ok-btn-hidden');
+                    caseOutcomeOkBtn.classList.add('ok-btn-visible');
+                }
+
+                caseOutcomeModal.classList.add('open');
             }
-        });
+        } catch (_) {
+            if (caseRouletteModal) {
+                caseRouletteModal.classList.remove('open');
+            }
+            setSpinningLockState(false);
+        } finally {
+            isResolvingCaseOpen = false;
+        }
     }
 
     if (caseOutcomeOkBtn) {
         caseOutcomeOkBtn.addEventListener('click', () => {
             caseOutcomeModal.classList.remove('open');
+            if (caseRouletteModal) {
+                caseRouletteModal.classList.remove('open');
+            }
         });
     }
 

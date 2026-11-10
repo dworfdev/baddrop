@@ -67,10 +67,6 @@ public class CaseInitialCatalogConfig {
         int total = seeds.size();
         for (int i = 0; i < total; i++) {
             InitialCaseSeed seed = seeds.get(i);
-            if (caseRepository.existsBySlug(seed.slug())) {
-                continue;
-            }
-
             String paytableJson = objectMapper.writeValueAsString(seed.paytable());
             boolean hasFloorMultiplier = seed.paytable() != null && seed.paytable().stream()
                     .anyMatch(t -> t.probability() > 0.0
@@ -83,6 +79,16 @@ public class CaseInitialCatalogConfig {
             List<CaseOpenerEngine.Outcome> outcomes = caseOpenerEngine.toOutcomes(seed.price(), seed.paytable());
             if (!caseOpenerEngine.validateMathematics(seed.slug(), seed.price(), outcomes)) {
                 throw new IllegalStateException("Mathematical validation failed for initial case: " + seed.slug());
+            }
+
+            var existingOpt = caseRepository.findBySlug(seed.slug());
+            if (existingOpt.isPresent()) {
+                CaseEntity existing = existingOpt.get();
+                if (!paytableJson.equals(existing.getPaytableJson())) {
+                    existing.setPaytableJson(paytableJson);
+                    caseRepository.saveAndFlush(existing);
+                }
+                continue;
             }
 
             Instant createdAt = baseTime.minusSeconds(total - 1 - i);

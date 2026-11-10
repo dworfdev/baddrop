@@ -860,140 +860,247 @@ body {
     pointer-events: auto;
 }
 
-.case-opening-overlay {
-    position: fixed;
-    inset: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(14, 18, 26, 0.9);
+/* ========================================================================= */
+/* CS:GO / CSFAIL HORIZONTAL CAROUSEL REEL ROULETTE MODAL                    */
+/* ========================================================================= */
+#caseRouletteModal {
+    z-index: 1200;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    z-index: 1200;
-    user-select: none;
-    opacity: 1;
-    transition: opacity 0.42s ease;
 }
 
-.case-opening-overlay.open {
+.case-roulette-modal-card {
+    max-width: 440px;
+    width: 100%;
+    padding: 18px 16px !important;
+    border-radius: var(--radius-modal);
     display: flex;
-    opacity: 1;
-    animation: overlayFadeIn 0.2s ease;
+    flex-direction: column;
+    gap: 12px;
+    background: linear-gradient(180deg, #1A1F2C 0%, #141923 100%);
+    border: 1px solid var(--border-subtle, #2B3347);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.65);
+    transform: none !important;
+    animation: rouletteModalFadeIn 0.2s ease !important;
 }
 
-.case-opening-overlay.fading-out {
-    opacity: 0;
+@keyframes rouletteModalFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.roulette-stage-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.roulette-case-name {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text, #FFFFFF);
+}
+
+.roulette-status-badge {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    background: rgba(56, 189, 248, 0.14);
+    color: #38BDF8;
+    border: 1px solid rgba(56, 189, 248, 0.32);
+}
+
+.roulette-status-badge.completed {
+    background: rgba(34, 197, 94, 0.16);
+    color: #22C55E;
+    border-color: rgba(34, 197, 94, 0.38);
+}
+
+.case-roulette-viewport {
+    --roulette-gap: 8px;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    background: #0E121A;
+    border: 1px solid #2B3347;
+    border-radius: 12px;
+    padding: 12px 0;
+    box-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.65);
+    user-select: none;
+}
+
+.roulette-edge-fade {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 36px;
+    z-index: 4;
     pointer-events: none;
 }
 
-@keyframes overlayFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+.roulette-edge-fade.left {
+    left: 0;
+    background: linear-gradient(90deg, rgba(14, 18, 26, 0.92) 0%, rgba(14, 18, 26, 0) 100%);
 }
 
-.case-tap-stage {
-    position: relative;
-    display: none;
+.roulette-edge-fade.right {
+    right: 0;
+    background: linear-gradient(270deg, rgba(14, 18, 26, 0.92) 0%, rgba(14, 18, 26, 0) 100%);
+}
+
+.roulette-center-marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 2px;
+    transform: translateX(-50%);
+    background: #FACC15;
+    box-shadow: 0 0 10px rgba(250, 204, 21, 0.95), 0 0 20px rgba(250, 204, 21, 0.55);
+    z-index: 6;
+    pointer-events: none;
+}
+
+.roulette-center-marker::before,
+.roulette-center-marker::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+}
+
+.roulette-center-marker::before {
+    top: 0;
+    border-top: 7px solid #FACC15;
+}
+
+.roulette-center-marker::after {
+    bottom: 0;
+    border-bottom: 7px solid #FACC15;
+}
+
+.case-roulette-track {
+    display: flex;
+    align-items: stretch;
+    gap: var(--roulette-gap, 8px);
+    width: max-content;
+    will-change: transform;
+    transform: translateX(0px);
+}
+
+.roulette-slot-card {
+    flex: 0 0 var(--roulette-card-width, 64px);
+    width: var(--roulette-card-width, 64px);
+    min-width: var(--roulette-card-width, 64px);
+    max-width: var(--roulette-card-width, 64px);
+    height: 82px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #1E2433 0%, #151A25 100%);
+    border: 1px solid #2B3347;
+    border-bottom: 3px solid var(--slot-accent, #64748B);
+    display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 16px;
-    cursor: pointer;
-    padding: 20px;
-    z-index: 2;
-    touch-action: manipulation;
-    opacity: 1;
-    transform: scale(1);
-    transition: opacity 0.42s cubic-bezier(0.22, 1, 0.36, 1), transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+    gap: 4px;
+    position: relative;
+    overflow: hidden;
+    padding: 6px 4px;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
-.case-tap-stage.active {
-    display: flex;
-}
-
-.case-tap-stage.fade-out-stage {
-    opacity: 0;
-    transform: scale(1.06);
+.roulette-slot-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 100%, var(--slot-glow, rgba(100, 116, 139, 0.18)) 0%, transparent 72%);
     pointer-events: none;
 }
 
-.case-light-rays {
-    position: absolute;
-    top: calc(50% - 22px);
-    left: 50%;
-    width: 0;
-    height: 0;
+.roulette-slot-card.tier-floor {
+    --slot-accent: #64748B;
+    --slot-glow: rgba(100, 116, 139, 0.2);
+}
+
+.roulette-slot-card.tier-common {
+    --slot-accent: #38BDF8;
+    --slot-glow: rgba(56, 189, 248, 0.24);
+}
+
+.roulette-slot-card.tier-even {
+    --slot-accent: #14B8A6;
+    --slot-glow: rgba(20, 184, 166, 0.25);
+}
+
+.roulette-slot-card.tier-profit {
+    --slot-accent: #22C55E;
+    --slot-glow: rgba(34, 197, 94, 0.26);
+}
+
+.roulette-slot-card.tier-rare {
+    --slot-accent: #A855F7;
+    --slot-glow: rgba(168, 85, 247, 0.28);
+}
+
+.roulette-slot-card.tier-jackpot {
+    --slot-accent: #FACC15;
+    --slot-glow: rgba(250, 204, 21, 0.34);
+}
+
+.roulette-slot-card.winning-slot-highlight {
+    border-color: var(--slot-accent, #22C55E);
+    box-shadow: 0 0 18px var(--slot-glow, rgba(34, 197, 94, 0.45));
+}
+
+.roulette-slot-multiplier {
+    position: relative;
     z-index: 1;
-    pointer-events: none;
-}
-
-.case-light-ray {
-    position: absolute;
-    left: -60px;
-    bottom: 0;
-    width: 120px;
-    height: 320px;
-    transform-origin: 50% 100%;
-    transform: rotate(var(--ray-angle, 0deg)) scaleY(1);
-    background: url('/imgs/effects/case-light-beam.png') no-repeat center / 100% 100%;
-    animation: rayBurstOut 0.36s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    pointer-events: none;
-    will-change: transform, opacity;
-}
-
-@keyframes rayBurstOut {
-    0% {
-        opacity: 0;
-        transform: rotate(var(--ray-angle, 0deg)) scaleY(0.15) scaleX(0.4);
-    }
-    65% {
-        opacity: 1;
-        transform: rotate(var(--ray-angle, 0deg)) scaleY(1.06) scaleX(1.08);
-    }
-    100% {
-        opacity: 1;
-        transform: rotate(var(--ray-angle, 0deg)) scaleY(1) scaleX(1);
-    }
-}
-
-.case-tap-img {
-    position: relative;
-    z-index: 2;
-    width: 200px;
-    height: 200px;
-    object-fit: contain;
-    filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 24px var(--accent-cyan-glow));
-    pointer-events: none;
-    transition: filter 0.25s ease;
-}
-
-.case-tap-img.shake {
-    animation: caseTapShake 0.25s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
-
-@keyframes caseTapShake {
-    0% { transform: scale(1) rotate(0deg); }
-    20% { transform: scale(1.08) rotate(-7deg) translate(-5px, -3px); }
-    40% { transform: scale(1.1) rotate(7deg) translate(5px, -2px); }
-    60% { transform: scale(1.06) rotate(-5deg) translate(-3px, 2px); }
-    80% { transform: scale(1.03) rotate(4deg) translate(2px, 0); }
-    100% { transform: scale(1) rotate(0deg); }
-}
-
-.case-tap-text {
-    position: relative;
-    z-index: 2;
-    font-family: var(--font-sans);
-    font-size: 28px;
+    font-family: var(--font-mono);
+    font-size: 16px;
     font-weight: 800;
+    color: #FFFFFF;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.roulette-slot-card.tier-jackpot .roulette-slot-multiplier {
+    color: #FACC15;
+}
+
+.roulette-slot-tag {
+    position: relative;
+    z-index: 1;
+    font-family: var(--font-sans);
+    font-size: 8px;
+    font-weight: 700;
     text-transform: uppercase;
-    color: var(--text);
-    letter-spacing: 0.05em;
-    text-shadow: 0 4px 18px rgba(0, 0, 0, 0.65);
-    pointer-events: none;
+    letter-spacing: 0.03em;
+    color: var(--slot-accent, #94A3B8);
+    line-height: 1.15;
+    text-align: center;
+}
+
+.spinning-disabled {
+    pointer-events: none !important;
+    opacity: 0.55;
 }
 
 /* ========================================================================= */

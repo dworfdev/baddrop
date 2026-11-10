@@ -162,9 +162,12 @@ public class CaseOpeningService {
             );
         }
 
-        List<CaseOpenerEngine.Outcome> paytable = caseOpenerEngine.parseOutcomes(
-                caseEntity.getPrice(),
+        List<CaseOpenerEngine.PaytableTier> paytableTiers = caseOpenerEngine.parsePaytableJson(
                 caseEntity.getPaytableJson()
+        );
+        List<CaseOpenerEngine.Outcome> paytable = caseOpenerEngine.toOutcomes(
+                caseEntity.getPrice(),
+                paytableTiers
         );
 
         SpinResult spinResult = openWithPaytable(caseEntity.getSlug(), caseEntity.getPrice(), paytable);
@@ -179,6 +182,7 @@ public class CaseOpeningService {
                 savedUser.getUsername(),
                 slug,
                 caseEntity.getPrice(),
+                outcome.multiplier(),
                 outcome.winAmount(),
                 isJackpot,
                 outcome.tierLabel(),
@@ -186,7 +190,8 @@ public class CaseOpeningService {
                 List.copyOf(savedUser.getItems()),
                 stats.expectedValue(),
                 stats.rtpPercent(),
-                stats.variance()
+                stats.variance(),
+                paytableTiers
         );
     }
 

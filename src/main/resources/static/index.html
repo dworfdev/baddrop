@@ -10,7 +10,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css?v=20" />
+    <link rel="stylesheet" href="/styles.css?v=23" />
 </head>
 
 <body>
@@ -387,18 +387,25 @@
     </div>
 
     <!-- =================================================================== -->
-    <!-- OVERLAY: 5-TAP CASE OPENING (FADE TRANSITION TO OUTCOME)            -->
+    <!-- MODAL 3A: CASE ROULETTE OVERLAY (CENTERED MODAL WITH BLUR BACKDROP) -->
     <!-- =================================================================== -->
-    <div id="caseOpeningOverlay" class="case-opening-overlay">
-        <div id="caseTapStage" class="case-tap-stage active">
-            <div id="caseLightRays" class="case-light-rays" aria-hidden="true"></div>
-            <img id="caseTapImage" src="" alt="Case" class="case-tap-img" />
-            <div id="caseTapPrompt" class="case-tap-text">Tap!</div>
+    <div id="caseRouletteModal" class="modal-backdrop">
+        <div id="caseRouletteStage" class="modal-card case-roulette-modal-card">
+            <div class="roulette-stage-header">
+                <span id="rouletteCaseName" class="roulette-case-name">OPENING CASE</span>
+                <span id="rouletteStatusBadge" class="roulette-status-badge">SPINNING...</span>
+            </div>
+            <div id="caseRouletteViewport" class="case-roulette-viewport">
+                <div class="roulette-edge-fade left" aria-hidden="true"></div>
+                <div class="roulette-edge-fade right" aria-hidden="true"></div>
+                <div class="roulette-center-marker" aria-hidden="true"></div>
+                <div id="caseRouletteTrack" class="case-roulette-track"></div>
+            </div>
         </div>
     </div>
 
     <!-- =================================================================== -->
-    <!-- MODAL 3: CASE OPENING OUTCOME (TITLE + WIN AMOUNT + BUTTON)         -->
+    <!-- MODAL 3B: CASE OPENING OUTCOME (TITLE + WIN AMOUNT + BUTTON)        -->
     <!-- =================================================================== -->
     <div id="caseOutcomeModal" class="modal-backdrop">
         <div class="modal-card case-outcome-card">
@@ -413,7 +420,7 @@
     </div>
 
     <div id="toastContainer" class="toast-container"></div>
-    <script src="/app.js?v=19"></script>
+    <script src="/app.js?v=22"></script>
 </body>
 
 </html>
