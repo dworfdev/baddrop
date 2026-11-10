@@ -135,6 +135,12 @@ public class UserController {
         return userService.openCase(request);
     }
 
+    // 3b-instant) Player: Instant open case directly from marketplace (POST) - deducts crate price, spins & credits win
+    @PostMapping({"/api/cases/instant-open", "/api/users/cases/instant-open"})
+    public OpenCaseResponse instantOpenCase(@RequestBody ItemOperationRequest request) {
+        return userService.instantOpenCase(request);
+    }
+
     // 3c-1) Get all active cases ordered by created_at DESC
     @GetMapping("/api/cases")
     public List<CaseResponse> getActiveCases() {

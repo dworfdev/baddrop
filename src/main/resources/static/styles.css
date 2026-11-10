@@ -724,9 +724,10 @@ body {
     padding-top: 10px;
     border-top: 1px solid var(--border-subtle);
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
 }
 
 .case-price {
@@ -739,14 +740,14 @@ body {
 .case-buy-btn {
     cursor: pointer;
     outline: none;
-    min-height: 44px;
+    min-height: 40px;
     background: linear-gradient(180deg, var(--accent-emerald) 0%, var(--accent-emerald-dark) 100%);
     color: #FFFFFF;
     border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: var(--radius-pill);
-    padding: 10px 22px;
+    padding: 8px 16px;
     font-family: var(--font-sans);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -755,6 +756,7 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    white-space: nowrap;
     touch-action: manipulation;
 }
 
@@ -770,21 +772,23 @@ body {
 
 .case-action-group {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    justify-content: flex-end;
+    gap: 6px;
 }
 
 .case-view-btn {
     cursor: pointer;
     outline: none;
-    min-height: 44px;
+    min-height: 40px;
     background: rgba(255, 255, 255, 0.04);
     color: var(--text);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-pill);
-    padding: 10px 16px;
+    padding: 8px 14px;
     font-family: var(--font-sans);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -792,6 +796,7 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    white-space: nowrap;
     touch-action: manipulation;
 }
 
@@ -802,6 +807,39 @@ body {
 }
 
 .case-view-btn:active {
+    transform: scale(0.97);
+}
+
+.case-instant-open-btn {
+    cursor: pointer;
+    outline: none;
+    min-height: 40px;
+    background: linear-gradient(180deg, #38BDF8 0%, #0284C7 100%);
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: var(--radius-pill);
+    padding: 8px 14px;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    box-shadow: 0 4px 14px rgba(56, 189, 248, 0.28);
+    transition: filter 0.18s ease, transform 0.15s ease, box-shadow 0.18s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    touch-action: manipulation;
+}
+
+.case-instant-open-btn:hover {
+    filter: brightness(1.08);
+    box-shadow: 0 6px 20px rgba(56, 189, 248, 0.38);
+    transform: translateY(-1px);
+}
+
+.case-instant-open-btn:active {
     transform: scale(0.97);
 }
 

@@ -553,6 +553,7 @@
                         <div class="case-action-group">
                             <button type="button" class="case-view-btn" data-view-crate="${crate.slug}">View</button>
                             <button type="button" class="case-buy-btn" data-buy-crate="${crate.slug}">BUY</button>
+                            <button type="button" class="case-instant-open-btn" data-instant-open-crate="${crate.slug}">Instant Open</button>
                         </div>
                     </div>
                 </div>
@@ -560,6 +561,10 @@
 
             card.querySelector('[data-view-crate]').addEventListener('click', () => {
                 openCaseInspectModal(crate);
+            });
+
+            card.querySelector('[data-instant-open-crate]').addEventListener('click', () => {
+                startInteractiveCaseOpening(crate, { instant: true });
             });
 
             card.querySelector('[data-buy-crate]').addEventListener('click', async () => {
@@ -776,7 +781,7 @@
 
     function setSpinningLockState(locked) {
         const interactiveControls = document.querySelectorAll(
-            '[data-open-crate], [data-view-crate], #inventorySearchInput, #inventoryFilterBtn, .nav-tab, #openBalanceModalBtn'
+            '[data-open-crate], [data-instant-open-crate], [data-buy-crate], [data-view-crate], #inventorySearchInput, #inventoryFilterBtn, #casesSearchInput, #casesFilterBtn, #backToGamesBtn, .nav-tab, #openBalanceModalBtn'
         );
         interactiveControls.forEach(el => {
             if (locked) {
@@ -789,8 +794,9 @@
         });
     }
 
-    async function startInteractiveCaseOpening(crate) {
+    async function startInteractiveCaseOpening(crate, options = {}) {
         if (isResolvingCaseOpen || !crate) return;
+        const isInstant = Boolean(options && options.instant);
         isResolvingCaseOpen = true;
         setSpinningLockState(true);
 
@@ -799,8 +805,9 @@
         }
 
         try {
-            // 1. Backend execution: deduct crate & deterministically select winning outcome from paytable
-            const res = await callApi('POST', '/api/users/items/open', {
+            // 1. Backend execution: deduct crate (or crate price on instant open) & select winning outcome from paytable
+            const endpoint = isInstant ? '/api/cases/instant-open' : '/api/users/items/open';
+            const res = await callApi('POST', endpoint, {
                 username: currentUser.username,
                 password: currentUser.password,
                 item: crate.slug
@@ -813,9 +820,16 @@
             const isJackpot = Boolean(res.jackpot) || res.outcomeTier === 'TOP PRIZE' || res.outcomeTier === 'Jackpot Cap';
             const paytable = Array.isArray(res.paytable) ? res.paytable : [];
 
-            // Update inventory count immediately so opened crate is consumed visually
-            currentUser.items = Array.isArray(res.remainingItems) ? res.remainingItems : [];
-            renderInventoryGrid();
+            if (isInstant) {
+                // Dynamically deduct crate cost from top balance display while reel spins
+                const crateCost = Number(res.casePrice !== undefined ? res.casePrice : crate.price) || 0;
+                const postDeductBalance = Math.max(0, (Number(currentUser.balance) || 0) - crateCost);
+                updateBalanceDisplay(postDeductBalance);
+            } else {
+                // Update inventory count immediately so opened crate is consumed visually
+                currentUser.items = Array.isArray(res.remainingItems) ? res.remainingItems : [];
+                renderInventoryGrid();
+            }
             setSpinningLockState(true);
 
             // 2. Construct 100-slot tape with winning outcome strictly at index 96
@@ -894,6 +908,9 @@
             }
 
             updateBalanceDisplay(res.newBalance);
+            if (isInstant) {
+                renderCasesMarketplaceGrid();
+            }
             await syncTopRichLeaderboard();
             await new Promise(r => setTimeout(r, 280));
 

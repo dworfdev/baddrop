@@ -434,6 +434,20 @@ public class UserService {
         return caseOpeningService.openCaseForUser(user, request.item());
     }
 
+    /**
+     * Instantly opens the requested case directly from the marketplace (bypassing inventory check),
+     * atomically deducting the crate price from the player's balance, running the spin via
+     * CaseOpeningService & CaseOpenerEngine, and crediting the won USDT payout back to the player's balance.
+     */
+    @Transactional
+    public OpenCaseResponse instantOpenCase(ItemOperationRequest request) {
+        User user = authenticateAndLockUser(request.username(), request.password());
+        if (request.item() == null || request.item().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Case slug must be provided");
+        }
+        return caseOpeningService.instantOpenCase(user, request.item());
+    }
+
     @Transactional(readOnly = true)
     public List<CaseResponse> getActiveCases() {
         return caseOpeningService.getActiveCases();

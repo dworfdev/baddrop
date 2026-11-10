@@ -196,6 +196,71 @@ public class CaseOpeningService {
     }
 
     /**
+     * Instantly opens a case directly from the marketplace for the given user without touching inventory:
+     * 1. Finds the case in DB by slug and verifies {@code is_active} is true.
+     * 2. Validates {@code user.balance >= case.price} (throws HTTP 400 if insufficient).
+     * 3. Atomically deducts {@code case.price} from user balance.
+     * 4. Runs spin calculation via {@link CaseOpenerEngine} and bankroll accounting under pessimistic lock.
+     * 5. Credits the won payout back to user balance and saves user state.
+     * 6. Returns the standard {@link OpenCaseResponse} payload.
+     */
+    @Transactional
+    public OpenCaseResponse instantOpenCase(User user, String rawSlug) {
+        CaseEntity caseEntity = findCaseBySlugOrThrow(rawSlug);
+        if (!caseEntity.isActive()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Case '" + caseEntity.getSlug() + "' is not active"
+            );
+        }
+
+        String slug = caseEntity.getSlug();
+        BigDecimal price = caseEntity.getPrice();
+        if (user.getBalance().compareTo(price) < 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Insufficient funds to open " + slug + " ($" + price + "). Current balance: $" + user.getBalance()
+            );
+        }
+
+        // Deduct crate price before spin
+        user.setBalance(user.getBalance().subtract(price));
+
+        List<CaseOpenerEngine.PaytableTier> paytableTiers = caseOpenerEngine.parsePaytableJson(
+                caseEntity.getPaytableJson()
+        );
+        List<CaseOpenerEngine.Outcome> paytable = caseOpenerEngine.toOutcomes(
+                price,
+                paytableTiers
+        );
+
+        SpinResult spinResult = openWithPaytable(slug, price, paytable);
+        CaseOpenerEngine.Outcome outcome = spinResult.outcome();
+        CaseOpenerEngine.CaseMathStats stats = caseOpenerEngine.calculateStats(slug, price, paytable);
+        boolean isJackpot = caseOpenerEngine.isMaxWin(paytable, outcome.winAmount());
+
+        // Credit won payout to user balance and persist without modifying inventory items
+        user.setBalance(user.getBalance().add(outcome.winAmount()));
+        User savedUser = userRepository.save(user);
+
+        return new OpenCaseResponse(
+                savedUser.getUsername(),
+                slug,
+                price,
+                outcome.multiplier(),
+                outcome.winAmount(),
+                isJackpot,
+                outcome.tierLabel(),
+                savedUser.getBalance(),
+                List.copyOf(savedUser.getItems()),
+                stats.expectedValue(),
+                stats.rtpPercent(),
+                stats.variance(),
+                paytableTiers
+        );
+    }
+
+    /**
      * Executes a single bankroll-tracked spin for the case identified by {@code rawSlug}.
      */
     @Transactional
