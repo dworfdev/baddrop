@@ -111,9 +111,13 @@
     const caseRouletteModal = document.getElementById('caseRouletteModal');
     const caseRouletteStage = document.getElementById('caseRouletteStage');
     const rouletteCaseName = document.getElementById('rouletteCaseName');
-    const rouletteStatusBadge = document.getElementById('rouletteStatusBadge');
     const caseRouletteViewport = document.getElementById('caseRouletteViewport');
     const caseRouletteTrack = document.getElementById('caseRouletteTrack');
+
+    const caseInspectModal = document.getElementById('caseInspectModal');
+    const caseInspectTitle = document.getElementById('caseInspectTitle');
+    const closeCaseInspectModalBtn = document.getElementById('closeCaseInspectModalBtn');
+    const caseInspectTableBody = document.getElementById('caseInspectTableBody');
 
     const caseOutcomeModal = document.getElementById('caseOutcomeModal');
     const caseOutcomeTitle = document.getElementById('caseOutcomeTitle');
@@ -353,7 +357,22 @@
 
     async function loadCasesCatalog() {
         try {
-            const data = await callApi('GET', '/api/cases');
+            const [data, mathData] = await Promise.all([
+                callApi('GET', '/api/cases'),
+                callApi('GET', '/api/cases/math', null, false).catch(() => [])
+            ]);
+            const paytableBySlug = {};
+            if (Array.isArray(mathData)) {
+                mathData.forEach(item => {
+                    if (item && item.slug && Array.isArray(item.paytable)) {
+                        paytableBySlug[item.slug] = item.paytable.map(o => ({
+                            multiplier: Number(o.multiplier) || 0,
+                            probability: Number(o.probability) || 0,
+                            label: o.tierLabel || o.label || ''
+                        }));
+                    }
+                });
+            }
             if (Array.isArray(data)) {
                 casesCatalog = data.map(c => ({
                     id: c.id,
@@ -361,10 +380,93 @@
                     name: c.name || c.slug,
                     price: Number(c.price) || 0,
                     imageUrl: c.imageUrl || c.image_url || '/imgs/cases/case-fallback.png',
-                    createdAt: c.createdAt || c.created_at
+                    createdAt: c.createdAt || c.created_at,
+                    paytable: Array.isArray(c.paytable) ? c.paytable : (paytableBySlug[c.slug] || [])
                 }));
             }
         } catch (_) {}
+    }
+
+    function formatInspectMultiplier(multiplier) {
+        const num = Number(multiplier);
+        if (!Number.isFinite(num) || num <= 0) return '0.0x';
+        const formatted = Number.isInteger(num) ? num.toFixed(1) : String(Number(num.toFixed(2)));
+        return `${formatted}x`;
+    }
+
+    function formatInspectChance(probability) {
+        const pct = (Number(probability) || 0) * 100;
+        if (!Number.isFinite(pct) || pct <= 0) return '0%';
+        const cleaned = Number(pct.toFixed(4));
+        return `${cleaned}%`;
+    }
+
+    async function openCaseInspectModal(crate) {
+        if (!crate || !caseInspectModal) return;
+
+        let paytable = Array.isArray(crate.paytable) && crate.paytable.length > 0 ? crate.paytable : [];
+        if (paytable.length === 0) {
+            try {
+                const mathData = await callApi('GET', '/api/cases/math', null, false);
+                if (Array.isArray(mathData)) {
+                    const match = mathData.find(m => m && m.slug === crate.slug);
+                    if (match && Array.isArray(match.paytable)) {
+                        paytable = match.paytable.map(o => ({
+                            multiplier: Number(o.multiplier) || 0,
+                            probability: Number(o.probability) || 0,
+                            label: o.tierLabel || o.label || ''
+                        }));
+                        crate.paytable = paytable;
+                    }
+                }
+            } catch (_) {}
+        }
+
+        if (caseInspectTitle) {
+            caseInspectTitle.textContent = crate.name || crate.slug;
+        }
+
+        if (caseInspectTableBody) {
+            caseInspectTableBody.innerHTML = '';
+            const cratePrice = Number(crate.price) || 0;
+
+            paytable.forEach(tier => {
+                const mult = Number(tier.multiplier) || 0;
+                const prob = Number(tier.probability) || 0;
+                const rawLabel = (tier.label || tier.tierLabel || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+                const tierMeta = classifySlotTier(rawLabel);
+                const labelText = rawLabel || tierMeta.tag;
+                const payoutDollars = (cratePrice * mult).toFixed(2);
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><span class="inspect-tier-label ${tierMeta.className}">${labelText}</span></td>
+                    <td class="inspect-multiplier-cell">${formatInspectMultiplier(mult)}</td>
+                    <td class="inspect-payout-cell">$${payoutDollars}</td>
+                    <td class="inspect-chance-cell">${formatInspectChance(prob)}</td>
+                `;
+                caseInspectTableBody.appendChild(tr);
+            });
+        }
+
+        caseInspectModal.classList.add('open');
+    }
+
+    function closeCaseInspectModal() {
+        if (caseInspectModal) {
+            caseInspectModal.classList.remove('open');
+        }
+    }
+
+    if (closeCaseInspectModalBtn) {
+        closeCaseInspectModalBtn.addEventListener('click', closeCaseInspectModal);
+    }
+    if (caseInspectModal) {
+        caseInspectModal.addEventListener('click', (e) => {
+            if (e.target === caseInspectModal) {
+                closeCaseInspectModal();
+            }
+        });
     }
 
     async function openCasesMarketplace() {
@@ -448,10 +550,17 @@
                     <div class="case-title">${displayLabel}</div>
                     <div class="case-buy-row">
                         <span class="case-price">$${crate.price}</span>
-                        <button type="button" class="case-buy-btn" data-buy-crate="${crate.slug}">BUY</button>
+                        <div class="case-action-group">
+                            <button type="button" class="case-view-btn" data-view-crate="${crate.slug}">View</button>
+                            <button type="button" class="case-buy-btn" data-buy-crate="${crate.slug}">BUY</button>
+                        </div>
                     </div>
                 </div>
             `;
+
+            card.querySelector('[data-view-crate]').addEventListener('click', () => {
+                openCaseInspectModal(crate);
+            });
 
             card.querySelector('[data-buy-crate]').addEventListener('click', async () => {
                 try {
@@ -531,10 +640,17 @@
                     <div class="case-title">${displayLabel}</div>
                     <div class="case-buy-row">
                         <span class="case-count-inline">x${counts[crate.slug]}</span>
-                        <button type="button" class="case-buy-btn" data-open-crate="${crate.slug}">Open</button>
+                        <div class="case-action-group">
+                            <button type="button" class="case-view-btn" data-view-crate="${crate.slug}">View</button>
+                            <button type="button" class="case-buy-btn" data-open-crate="${crate.slug}">Open</button>
+                        </div>
                     </div>
                 </div>
             `;
+
+            card.querySelector('[data-view-crate]').addEventListener('click', () => {
+                openCaseInspectModal(crate);
+            });
 
             card.querySelector('[data-open-crate]').addEventListener('click', () => {
                 startInteractiveCaseOpening(crate);
@@ -660,7 +776,7 @@
 
     function setSpinningLockState(locked) {
         const interactiveControls = document.querySelectorAll(
-            '[data-open-crate], #inventorySearchInput, #inventoryFilterBtn, .nav-tab, #openBalanceModalBtn'
+            '[data-open-crate], [data-view-crate], #inventorySearchInput, #inventoryFilterBtn, .nav-tab, #openBalanceModalBtn'
         );
         interactiveControls.forEach(el => {
             if (locked) {
@@ -707,10 +823,6 @@
 
             if (rouletteCaseName) {
                 rouletteCaseName.textContent = crate.name || crate.slug;
-            }
-            if (rouletteStatusBadge) {
-                rouletteStatusBadge.textContent = 'SPINNING...';
-                rouletteStatusBadge.classList.remove('completed');
             }
 
             // 3. Mount 100 slot cards and open centered modal roulette overlay
@@ -779,10 +891,6 @@
             const winningSlotEl = caseRouletteTrack.children[WINNING_SLOT_INDEX];
             if (winningSlotEl) {
                 winningSlotEl.classList.add('winning-slot-highlight');
-            }
-            if (rouletteStatusBadge) {
-                rouletteStatusBadge.textContent = `WON ${formatMultiplierLabel(wonMultiplier)}`;
-                rouletteStatusBadge.classList.add('completed');
             }
 
             updateBalanceDisplay(res.newBalance);

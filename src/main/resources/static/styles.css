@@ -768,6 +768,43 @@ body {
     transform: scale(0.97);
 }
 
+.case-action-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.case-view-btn {
+    cursor: pointer;
+    outline: none;
+    min-height: 44px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-pill);
+    padding: 10px 16px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+}
+
+.case-view-btn:hover {
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.24);
+    transform: translateY(-1px);
+}
+
+.case-view-btn:active {
+    transform: scale(0.97);
+}
+
 .case-count-inline {
     font-family: var(--font-mono);
     font-size: 15px;
@@ -907,25 +944,6 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--text, #FFFFFF);
-}
-
-.roulette-status-badge {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    padding: 3px 10px;
-    border-radius: 9999px;
-    background: rgba(56, 189, 248, 0.14);
-    color: #38BDF8;
-    border: 1px solid rgba(56, 189, 248, 0.32);
-}
-
-.roulette-status-badge.completed {
-    background: rgba(34, 197, 94, 0.16);
-    color: #22C55E;
-    border-color: rgba(34, 197, 94, 0.38);
 }
 
 .case-roulette-viewport {
@@ -1101,6 +1119,147 @@ body {
 .spinning-disabled {
     pointer-events: none !important;
     opacity: 0.55;
+}
+
+/* ========================================================================= */
+/* CASE INSPECTION MODAL (DROP PAYTABLE VIEW)                                */
+/* ========================================================================= */
+#caseInspectModal {
+    z-index: 1180;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.case-inspect-card {
+    max-width: 440px;
+    width: 100%;
+    padding: 18px 16px !important;
+    border-radius: var(--radius-modal);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.case-inspect-table-wrap {
+    width: 100%;
+    background: #0E121A;
+    border: 1px solid var(--border-subtle, #2B3347);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.case-inspect-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    text-align: left;
+}
+
+.case-inspect-table thead th {
+    padding: 9px 8px;
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted, #94A3B8);
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid var(--border-subtle, #2B3347);
+    white-space: nowrap;
+}
+
+.case-inspect-table thead th:nth-child(1),
+.case-inspect-table tbody td:nth-child(1) {
+    width: 38%;
+    padding-left: 10px;
+}
+
+.case-inspect-table thead th:nth-child(2),
+.case-inspect-table tbody td:nth-child(2) {
+    width: 22%;
+    text-align: center;
+}
+
+.case-inspect-table thead th:nth-child(3),
+.case-inspect-table tbody td:nth-child(3) {
+    width: 21%;
+    text-align: right;
+}
+
+.case-inspect-table thead th:nth-child(4),
+.case-inspect-table tbody td:nth-child(4) {
+    width: 19%;
+    text-align: right;
+    padding-right: 10px;
+}
+
+.case-inspect-table tbody tr {
+    border-bottom: 1px solid rgba(43, 51, 71, 0.55);
+}
+
+.case-inspect-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.case-inspect-table tbody td {
+    padding: 10px 8px;
+    font-size: 12px;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.inspect-tier-label {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #E2E8F0;
+}
+
+.inspect-tier-label.tier-floor {
+    color: #94A3B8;
+}
+
+.inspect-tier-label.tier-common {
+    color: #38BDF8;
+}
+
+.inspect-tier-label.tier-even {
+    color: #14B8A6;
+}
+
+.inspect-tier-label.tier-profit {
+    color: #22C55E;
+}
+
+.inspect-tier-label.tier-rare {
+    color: #A855F7;
+}
+
+.inspect-tier-label.tier-jackpot {
+    color: #FACC15;
+}
+
+.inspect-multiplier-cell {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: #FFFFFF;
+}
+
+.inspect-payout-cell {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-emerald, #22C55E);
+}
+
+.inspect-chance-cell {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted, #94A3B8);
 }
 
 /* ========================================================================= */

@@ -10,7 +10,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css?v=23" />
+    <link rel="stylesheet" href="/styles.css?v=25" />
 </head>
 
 <body>
@@ -393,7 +393,6 @@
         <div id="caseRouletteStage" class="modal-card case-roulette-modal-card">
             <div class="roulette-stage-header">
                 <span id="rouletteCaseName" class="roulette-case-name">OPENING CASE</span>
-                <span id="rouletteStatusBadge" class="roulette-status-badge">SPINNING...</span>
             </div>
             <div id="caseRouletteViewport" class="case-roulette-viewport">
                 <div class="roulette-edge-fade left" aria-hidden="true"></div>
@@ -419,8 +418,35 @@
         </div>
     </div>
 
+    <!-- =================================================================== -->
+    <!-- MODAL 4: CASE DROP CONTENTS INSPECTION MODAL                        -->
+    <!-- =================================================================== -->
+    <div id="caseInspectModal" class="modal-backdrop">
+        <div class="modal-card case-inspect-card">
+            <div class="modal-header">
+                <h3 id="caseInspectTitle">Case Contents</h3>
+                <button id="closeCaseInspectModalBtn" type="button" class="modal-close">&times;</button>
+            </div>
+            <div class="case-inspect-table-wrap">
+                <table class="case-inspect-table">
+                    <thead>
+                        <tr>
+                            <th>Tier</th>
+                            <th>Multiplier</th>
+                            <th>Payout</th>
+                            <th>Chance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="caseInspectTableBody">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <div id="toastContainer" class="toast-container"></div>
-    <script src="/app.js?v=22"></script>
+    <script src="/app.js?v=24"></script>
 </body>
 
 </html>
