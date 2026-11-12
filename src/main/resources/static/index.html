@@ -10,7 +10,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css?v=31" />
+    <link rel="stylesheet" href="/styles.css?v=33" />
 </head>
 
 <body>
@@ -407,18 +407,23 @@
     </div>
 
     <!-- =================================================================== -->
-    <!-- MODAL 3A: CASE ROULETTE OVERLAY (CENTERED MODAL WITH BLUR BACKDROP) -->
+    <!-- MODAL 3A: CASE ROULETTE OVERLAY (1 TO 5 STACKED REELS + SKIP BTN)   -->
     <!-- =================================================================== -->
     <div id="caseRouletteModal" class="modal-backdrop">
-        <div id="caseRouletteStage" class="modal-card case-roulette-modal-card">
+        <div id="caseRouletteStage" class="modal-card case-roulette-modal-card" data-reel-count="1">
             <div class="roulette-stage-header">
                 <span id="rouletteCaseName" class="roulette-case-name">OPENING CASE</span>
             </div>
-            <div id="caseRouletteViewport" class="case-roulette-viewport">
-                <div class="roulette-edge-fade left" aria-hidden="true"></div>
-                <div class="roulette-edge-fade right" aria-hidden="true"></div>
-                <div class="roulette-center-marker" aria-hidden="true"></div>
-                <div id="caseRouletteTrack" class="case-roulette-track"></div>
+            <div id="caseRouletteReelsStack" class="case-roulette-reels-stack" data-reel-count="1">
+                <div id="caseRouletteViewport" class="case-roulette-viewport">
+                    <div class="roulette-edge-fade left" aria-hidden="true"></div>
+                    <div class="roulette-edge-fade right" aria-hidden="true"></div>
+                    <div class="roulette-center-marker" aria-hidden="true"></div>
+                    <div id="caseRouletteTrack" class="case-roulette-track"></div>
+                </div>
+            </div>
+            <div class="roulette-skip-row">
+                <button id="rouletteSkipBtn" type="button" class="roulette-skip-btn">Skip</button>
             </div>
         </div>
     </div>
@@ -434,6 +439,25 @@
             </div>
             <div class="modal-actions single">
                 <button id="caseOutcomeOkBtn" type="button" class="pill-btn-primary">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- MODAL 3C: CHOOSE AMOUNT (x1 .. x5 BULK SELECTOR MINI-MODAL)         -->
+    <!-- =================================================================== -->
+    <div id="chooseAmountModal" class="modal-backdrop">
+        <div class="modal-card choose-amount-card">
+            <div class="modal-header">
+                <h3 id="chooseAmountTitle">Choose amount</h3>
+                <button id="closeChooseAmountModalBtn" type="button" class="modal-close">&times;</button>
+            </div>
+            <div id="chooseAmountOptionsRow" class="choose-amount-options-row">
+                <button type="button" class="choose-amount-option-btn" data-qty-option="1">x1</button>
+                <button type="button" class="choose-amount-option-btn" data-qty-option="2">x2</button>
+                <button type="button" class="choose-amount-option-btn" data-qty-option="3">x3</button>
+                <button type="button" class="choose-amount-option-btn" data-qty-option="4">x4</button>
+                <button type="button" class="choose-amount-option-btn" data-qty-option="5">x5</button>
             </div>
         </div>
     </div>
@@ -466,7 +490,7 @@
     </div>
 
     <div id="toastContainer" class="toast-container"></div>
-    <script src="/app.js?v=31"></script>
+    <script src="/app.js?v=33"></script>
 </body>
 
 </html>

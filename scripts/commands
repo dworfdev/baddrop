@@ -1,0 +1,60 @@
+﻿#!/usr/bin/env bash
+# Шпаргалка по управлению BADDROP (/opt/baddrop)
+# При выполнении команд с флагом -p MySQL попросит ввести пароль вручную.
+
+cd /opt/baddrop
+
+# ==========================================
+# 1. ДЕПЛОЙ И СИНХРОНИЗАЦИЯ КАТАЛОГА
+# ==========================================
+
+# Обновление кода, ребилд и синк кейсов
+git pull origin main && ./scripts/deploy.sh && ./scripts/sync.sh
+
+# Полный сброс каталога кейсов с перезаливкой из initial-cases.json
+git pull origin main
+docker exec -it baddrop_mysql mysql -u root -p baddrop_db -e "SET FOREIGN_KEY_CHECKS = 0; TRUNCATE TABLE cases; SET FOREIGN_KEY_CHECKS = 1;"
+./scripts/deploy.sh && ./scripts/sync.sh
+
+# ==========================================
+# 2. ОЧИСТКА ТАБЛИЦ (HARD RESET)
+# ==========================================
+
+# Полная очистка юзеров (учитывая возможный инвентарь/связи, отключаем FK)
+docker exec -it baddrop_mysql mysql -u root -p baddrop_db -e "SET FOREIGN_KEY_CHECKS = 0; TRUNCATE TABLE users; SET FOREIGN_KEY_CHECKS = 1;"
+
+# Полная очистка транзакций (депозиты/выводы)
+docker exec -it baddrop_mysql mysql -u root -p baddrop_db -e "SET FOREIGN_KEY_CHECKS = 0; TRUNCATE TABLE balance_transactions; SET FOREIGN_KEY_CHECKS = 1;"
+
+# Полная очистка кейсов
+docker exec -it baddrop_mysql mysql -u root -p baddrop_db -e "SET FOREIGN_KEY_CHECKS = 0; TRUNCATE TABLE cases; SET FOREIGN_KEY_CHECKS = 1;"
+
+# Снести разом всё (users + balance_transactions + cases)
+docker exec -it baddrop_mysql mysql -u root -p baddrop_db -e "SET FOREIGN_KEY_CHECKS = 0; TRUNCATE TABLE users; TRUNCATE TABLE balance_transactions; TRUNCATE TABLE cases; SET FOREIGN_KEY_CHECKS = 1;"
+
+# ==========================================
+# 3. ТОЧЕЧНЫЕ ПРАВКИ В MYSQL
+# ==========================================
+
+# Список всех кейсов
+docker exec -it baddrop_mysql mysql -u root -p baddrop_db -e "SELECT id, slug, name, price, is_active FROM cases;"
+
+# Скрыть / показать кейс (is_active = 0 или 1)
+docker exec -it baddrop_mysql mysql -u root -p baddrop_db -e "UPDATE cases SET is_active = 0 WHERE slug = 'pepe-plastic';"
+
+# Изменить цену кейса
+docker exec -it baddrop_mysql mysql -u root -p baddrop_db -e "UPDATE cases SET price = 1.50 WHERE slug = 'pepe-plastic';"
+
+# Удалить кейс по slug
+docker exec -it baddrop_mysql mysql -u root -p baddrop_db -e "DELETE FROM cases WHERE slug = 'pepe-iron';"
+
+# ==========================================
+# 4. КОНСОЛЬ БД И ЛОГИ
+# ==========================================
+
+# Интерактивный вход в MySQL
+docker exec -it baddrop_mysql mysql -u root -p baddrop_db
+
+# Статус контейнеров и логи бэкенда
+docker ps
+docker logs -f --tail 100 baddrop_app

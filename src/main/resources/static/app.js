@@ -116,8 +116,14 @@
     const caseRouletteModal = document.getElementById('caseRouletteModal');
     const caseRouletteStage = document.getElementById('caseRouletteStage');
     const rouletteCaseName = document.getElementById('rouletteCaseName');
+    const caseRouletteReelsStack = document.getElementById('caseRouletteReelsStack');
     const caseRouletteViewport = document.getElementById('caseRouletteViewport');
     const caseRouletteTrack = document.getElementById('caseRouletteTrack');
+    const rouletteSkipBtn = document.getElementById('rouletteSkipBtn');
+
+    const chooseAmountModal = document.getElementById('chooseAmountModal');
+    const closeChooseAmountModalBtn = document.getElementById('closeChooseAmountModalBtn');
+    const chooseAmountOptionsRow = document.getElementById('chooseAmountOptionsRow');
 
     const caseInspectModal = document.getElementById('caseInspectModal');
     const caseInspectTitle = document.getElementById('caseInspectTitle');
@@ -527,6 +533,97 @@
         });
     }
 
+    // =========================================================================
+    // QUANTITY SELECTOR STATE & "CHOOSE AMOUNT" MINI-MODAL (x1 .. x5)
+    // =========================================================================
+    const marketplaceQuantities = {};
+    const inventoryQuantities = {};
+    let activeQuantityModalContext = null; // { slug, contextType: 'MARKETPLACE' | 'INVENTORY', maxAvailable }
+
+    function getMarketplaceQuantity(slug) {
+        const q = Number(marketplaceQuantities[slug]) || 1;
+        return Math.min(5, Math.max(1, q));
+    }
+
+    function getInventoryQuantity(slug, ownedCount) {
+        const maxAllowed = Math.min(5, Math.max(1, Number(ownedCount) || 1));
+        const q = Number(inventoryQuantities[slug]) || 1;
+        const clamped = Math.min(maxAllowed, Math.max(1, q));
+        inventoryQuantities[slug] = clamped;
+        return clamped;
+    }
+
+    function openChooseAmountModal(slug, contextType = 'MARKETPLACE', maxAvailable = 5) {
+        if (!chooseAmountModal || !slug) return;
+        const clampedMax = contextType === 'INVENTORY'
+            ? Math.min(5, Math.max(1, Number(maxAvailable) || 1))
+            : 5;
+        const currentQty = contextType === 'INVENTORY'
+            ? getInventoryQuantity(slug, clampedMax)
+            : getMarketplaceQuantity(slug);
+
+        activeQuantityModalContext = {
+            slug,
+            contextType,
+            maxAvailable: clampedMax
+        };
+
+        if (chooseAmountOptionsRow) {
+            chooseAmountOptionsRow.querySelectorAll('[data-qty-option]').forEach(btn => {
+                const optQty = Number(btn.dataset.qtyOption) || 1;
+                const isAllowed = optQty <= clampedMax;
+                btn.classList.toggle('active', optQty === currentQty);
+                btn.classList.toggle('disabled', !isAllowed);
+            });
+        }
+
+        chooseAmountModal.classList.add('open');
+    }
+
+    function closeChooseAmountModal() {
+        if (chooseAmountModal) {
+            chooseAmountModal.classList.remove('open');
+        }
+        activeQuantityModalContext = null;
+    }
+
+    if (closeChooseAmountModalBtn) {
+        closeChooseAmountModalBtn.addEventListener('click', closeChooseAmountModal);
+    }
+
+    if (chooseAmountModal) {
+        chooseAmountModal.addEventListener('click', (e) => {
+            if (e.target === chooseAmountModal) {
+                closeChooseAmountModal();
+            }
+        });
+    }
+
+    if (chooseAmountOptionsRow) {
+        chooseAmountOptionsRow.querySelectorAll('[data-qty-option]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (!activeQuantityModalContext) return;
+                const optQty = Number(btn.dataset.qtyOption) || 1;
+                const { slug, contextType, maxAvailable } = activeQuantityModalContext;
+
+                if (contextType === 'INVENTORY' && optQty > maxAvailable) {
+                    showToast(`You only own x${maxAvailable} of this case in your inventory`, true);
+                    return;
+                }
+
+                if (contextType === 'INVENTORY') {
+                    inventoryQuantities[slug] = optQty;
+                    renderInventoryGrid();
+                } else {
+                    marketplaceQuantities[slug] = optQty;
+                    renderCasesMarketplaceGrid();
+                }
+
+                closeChooseAmountModal();
+            });
+        });
+    }
+
     async function openCasesMarketplace() {
         document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
         const casesTab = document.getElementById('tab-cases');
@@ -599,6 +696,8 @@
             const card = document.createElement('div');
             card.className = 'inventory-case-card';
             const displayLabel = crate.name;
+            const selectedQty = getMarketplaceQuantity(crate.slug);
+            const totalPrice = Number((crate.price * selectedQty).toFixed(2));
 
             card.innerHTML = `
                 <div class="case-image-slot">
@@ -607,9 +706,10 @@
                 <div class="case-bottom-footer">
                     <div class="case-title">${displayLabel}</div>
                     <div class="case-buy-row">
-                        <span class="case-price">$${crate.price}</span>
+                        <span class="case-price">$${totalPrice}</span>
                         <div class="case-action-group">
                             <button type="button" class="case-view-btn" data-view-crate="${crate.slug}">View</button>
+                            <button type="button" class="case-qty-btn" data-qty-crate="${crate.slug}">x${selectedQty}</button>
                             <button type="button" class="case-buy-btn" data-buy-crate="${crate.slug}">BUY</button>
                             <button type="button" class="case-instant-open-btn" data-instant-open-crate="${crate.slug}">Instant Open</button>
                         </div>
@@ -621,22 +721,34 @@
                 openCaseInspectModal(crate);
             });
 
+            card.querySelector('[data-qty-crate]').addEventListener('click', () => {
+                openChooseAmountModal(crate.slug, 'MARKETPLACE', 5);
+            });
+
             card.querySelector('[data-instant-open-crate]').addEventListener('click', () => {
-                startInteractiveCaseOpening(crate, { instant: true });
+                const qty = getMarketplaceQuantity(crate.slug);
+                startInteractiveCaseOpening(crate, { instant: true, quantity: qty });
             });
 
             card.querySelector('[data-buy-crate]').addEventListener('click', async () => {
                 try {
+                    const qty = getMarketplaceQuantity(crate.slug);
+                    const cost = Number((crate.price * qty).toFixed(2));
                     await callApi('POST', '/api/users/items/buy', {
                         username: currentUser.username,
                         password: currentUser.password,
-                        item: crate.slug
+                        item: crate.slug,
+                        quantity: qty
                     });
                     await syncBalanceFromGet();
                     await syncItemsFromGet();
                     await syncTopRichLeaderboard();
                     renderCasesMarketplaceGrid();
-                    showToast(`Bought ${displayLabel} for $${crate.price}! Moved to inventory.`);
+                    showToast(
+                        qty > 1
+                            ? `Bought x${qty} ${displayLabel} for $${cost.toFixed(2)}! Moved to inventory.`
+                            : `Bought ${displayLabel} for $${crate.price}! Moved to inventory.`
+                    );
                 } catch (_) {}
             });
 
@@ -695,6 +807,9 @@
             const card = document.createElement('div');
             card.className = 'inventory-case-card';
             const displayLabel = crate.name;
+            const ownedCount = counts[crate.slug] || 0;
+            const selectedQty = getInventoryQuantity(crate.slug, ownedCount);
+
             card.innerHTML = `
                 <div class="case-image-slot">
                     <img src="${crate.imageUrl}" alt="${displayLabel}" class="case-art-img" />
@@ -702,9 +817,10 @@
                 <div class="case-bottom-footer">
                     <div class="case-title">${displayLabel}</div>
                     <div class="case-buy-row">
-                        <span class="case-count-inline">x${counts[crate.slug]}</span>
+                        <span class="case-count-inline">x${ownedCount}</span>
                         <div class="case-action-group">
                             <button type="button" class="case-view-btn" data-view-crate="${crate.slug}">View</button>
+                            <button type="button" class="case-qty-btn" data-qty-crate="${crate.slug}">x${selectedQty}</button>
                             <button type="button" class="case-buy-btn" data-open-crate="${crate.slug}">Open</button>
                         </div>
                     </div>
@@ -715,8 +831,13 @@
                 openCaseInspectModal(crate);
             });
 
+            card.querySelector('[data-qty-crate]').addEventListener('click', () => {
+                openChooseAmountModal(crate.slug, 'INVENTORY', ownedCount);
+            });
+
             card.querySelector('[data-open-crate]').addEventListener('click', () => {
-                startInteractiveCaseOpening(crate);
+                const qty = getInventoryQuantity(crate.slug, ownedCount);
+                startInteractiveCaseOpening(crate, { instant: false, quantity: qty });
             });
 
             inventoryGrid.appendChild(card);
@@ -929,7 +1050,7 @@
 
     function setSpinningLockState(locked) {
         const interactiveControls = document.querySelectorAll(
-            '[data-open-crate], [data-instant-open-crate], [data-buy-crate], [data-view-crate], #inventorySearchInput, #inventoryFilterBtn, #casesSearchInput, #casesFilterBtn, #backToGamesBtn, .nav-tab, #openBalanceModalBtn, #topbarAvatarBtn, #profileDepositBtn, #profileWithdrawBtn'
+            '[data-open-crate], [data-instant-open-crate], [data-buy-crate], [data-view-crate], [data-qty-crate], #inventorySearchInput, #inventoryFilterBtn, #casesSearchInput, #casesFilterBtn, #backToGamesBtn, .nav-tab, #openBalanceModalBtn, #topbarAvatarBtn, #profileDepositBtn, #profileWithdrawBtn'
         );
         interactiveControls.forEach(el => {
             if (locked) {
@@ -942,9 +1063,21 @@
         });
     }
 
+    let activeSkipSpinHandler = null;
+
+    if (rouletteSkipBtn) {
+        rouletteSkipBtn.addEventListener('click', () => {
+            if (typeof activeSkipSpinHandler === 'function') {
+                activeSkipSpinHandler();
+            }
+        });
+    }
+
     async function startInteractiveCaseOpening(crate, options = {}) {
         if (isResolvingCaseOpen || !crate) return;
         const isInstant = Boolean(options && options.instant);
+        const requestedQty = Math.min(5, Math.max(1, Number(options && options.quantity) || 1));
+
         isResolvingCaseOpen = true;
         setSpinningLockState(true);
         initSlotTickAudio();
@@ -954,93 +1087,161 @@
         }
 
         try {
-            // 1. Backend execution: deduct crate (or crate price on instant open) & select winning outcome from paytable
+            // 1. Backend execution: deduct crate(s) (or crate price * quantity on instant open) & select winning outcomes
             const endpoint = isInstant ? '/api/cases/instant-open' : '/api/users/items/open';
             const res = await callApi('POST', endpoint, {
                 username: currentUser.username,
                 password: currentUser.password,
-                item: crate.slug
+                item: crate.slug,
+                quantity: requestedQty
             });
 
-            const wonAmount = Number(res.wonAmount) || 0;
-            const wonMultiplier = res.wonMultiplier !== undefined && res.wonMultiplier !== null
-                ? Number(res.wonMultiplier)
-                : (crate.price > 0 ? wonAmount / crate.price : 1);
-            const isJackpot = Boolean(res.jackpot) || res.outcomeTier === 'TOP PRIZE' || res.outcomeTier === 'Jackpot Cap';
             const paytable = Array.isArray(res.paytable) ? res.paytable : [];
+            const rawSpins = Array.isArray(res.spins) && res.spins.length > 0
+                ? res.spins
+                : [{
+                    wonAmount: Number(res.wonAmount) || 0,
+                    wonMultiplier: res.wonMultiplier !== undefined && res.wonMultiplier !== null
+                        ? Number(res.wonMultiplier)
+                        : (crate.price > 0 ? (Number(res.wonAmount) || 0) / crate.price : 1),
+                    outcomeTier: res.outcomeTier || '',
+                    jackpot: Boolean(res.jackpot)
+                }];
+
+            const reelCount = Math.min(5, Math.max(1, rawSpins.length));
+            const spins = rawSpins.slice(0, reelCount).map(s => {
+                const amt = Number(s.wonAmount) || 0;
+                const mult = s.wonMultiplier !== undefined && s.wonMultiplier !== null
+                    ? Number(s.wonMultiplier)
+                    : (crate.price > 0 ? amt / crate.price : 1);
+                const tier = s.outcomeTier || '';
+                const isJp = Boolean(s.jackpot) || tier === 'TOP PRIZE' || tier === 'Jackpot Cap';
+                return { wonAmount: amt, wonMultiplier: mult, outcomeTier: tier, jackpot: isJp };
+            });
+
+            const totalWonAmount = res.totalWonAmount !== undefined && res.totalWonAmount !== null
+                ? Number(res.totalWonAmount)
+                : spins.reduce((sum, s) => sum + s.wonAmount, 0);
+            const anyJackpot = Boolean(res.jackpot) || spins.some(s => s.jackpot);
 
             if (isInstant) {
-                // Dynamically deduct crate cost from top balance display while reel spins
-                const crateCost = Number(res.casePrice !== undefined ? res.casePrice : crate.price) || 0;
-                const postDeductBalance = Math.max(0, (Number(currentUser.balance) || 0) - crateCost);
+                // Dynamically deduct total crate cost from top balance display while reels spin
+                const unitCost = Number(res.caseCost !== undefined ? res.caseCost : crate.price) || 0;
+                const totalCost = unitCost * reelCount;
+                const postDeductBalance = Math.max(0, (Number(currentUser.balance) || 0) - totalCost);
                 updateBalanceDisplay(postDeductBalance);
             } else {
-                // Update inventory count immediately so opened crate is consumed visually
+                // Update inventory count immediately so opened crates are consumed visually
                 currentUser.items = Array.isArray(res.remainingItems) ? res.remainingItems : [];
                 renderInventoryGrid();
             }
             setSpinningLockState(true);
 
-            // 2. Construct 100-slot tape with winning outcome strictly at index 96
-            const tape = buildRouletteTape(paytable, wonMultiplier, res.outcomeTier);
-
             if (rouletteCaseName) {
-                rouletteCaseName.textContent = crate.name || crate.slug;
+                const baseTitle = crate.name || crate.slug;
+                rouletteCaseName.textContent = reelCount > 1 ? `${baseTitle} (x${reelCount})` : baseTitle;
             }
 
-            // 3. Mount 100 slot cards and open centered modal roulette overlay
-            caseRouletteTrack.style.transition = 'none';
-            caseRouletteTrack.style.transform = 'translateX(0px)';
-            caseRouletteTrack.innerHTML = '';
+            if (caseRouletteStage) {
+                caseRouletteStage.setAttribute('data-reel-count', String(reelCount));
+            }
+            if (caseRouletteReelsStack) {
+                caseRouletteReelsStack.setAttribute('data-reel-count', String(reelCount));
+                caseRouletteReelsStack.innerHTML = '';
+            }
 
-            const fragment = document.createDocumentFragment();
-            tape.forEach((slot, idx) => {
-                const tierMeta = classifySlotTier(slot);
-                const slotEl = document.createElement('div');
-                slotEl.className = `roulette-slot-card ${tierMeta.className}`;
-                slotEl.dataset.slotIndex = String(idx);
-                slotEl.innerHTML = `
-                    <div class="roulette-slot-multiplier">${formatMultiplierLabel(slot.multiplier)}</div>
-                    <div class="roulette-slot-tag">${tierMeta.tag}</div>
+            // 2. Construct N independent 100-slot reel viewports stacked vertically
+            const activeReels = [];
+            for (let r = 0; r < reelCount; r++) {
+                const spin = spins[r];
+                const tape = buildRouletteTape(paytable, spin.wonMultiplier, spin.outcomeTier);
+
+                const viewportEl = document.createElement('div');
+                viewportEl.className = 'case-roulette-viewport';
+                if (r === 0) {
+                    viewportEl.id = 'caseRouletteViewport';
+                }
+
+                const trackEl = document.createElement('div');
+                trackEl.className = 'case-roulette-track';
+                if (r === 0) {
+                    trackEl.id = 'caseRouletteTrack';
+                }
+                trackEl.style.transition = 'none';
+                trackEl.style.transform = 'translateX(0px)';
+
+                const fragment = document.createDocumentFragment();
+                tape.forEach((slot, idx) => {
+                    const tierMeta = classifySlotTier(slot);
+                    const slotEl = document.createElement('div');
+                    slotEl.className = `roulette-slot-card ${tierMeta.className}`;
+                    slotEl.dataset.slotIndex = String(idx);
+                    slotEl.innerHTML = `
+                        <div class="roulette-slot-multiplier">${formatMultiplierLabel(slot.multiplier)}</div>
+                        <div class="roulette-slot-tag">${tierMeta.tag}</div>
+                    `;
+                    fragment.appendChild(slotEl);
+                });
+                trackEl.appendChild(fragment);
+
+                viewportEl.innerHTML = `
+                    <div class="roulette-edge-fade left" aria-hidden="true"></div>
+                    <div class="roulette-edge-fade right" aria-hidden="true"></div>
+                    <div class="roulette-center-marker" aria-hidden="true"></div>
                 `;
-                fragment.appendChild(slotEl);
-            });
-            caseRouletteTrack.appendChild(fragment);
+                viewportEl.appendChild(trackEl);
+                caseRouletteReelsStack.appendChild(viewportEl);
+
+                activeReels.push({ viewportEl, trackEl, spin, targetX: 0 });
+            }
+
+            if (rouletteSkipBtn) {
+                rouletteSkipBtn.disabled = false;
+                rouletteSkipBtn.style.display = '';
+            }
 
             if (caseRouletteModal) {
                 caseRouletteModal.classList.add('open');
             }
 
-            // 4. Measure unscaled container width, size 5 visible cards, trigger reflow & compute exact targetX
-            void caseRouletteViewport.offsetWidth;
+            // 3. Measure unscaled container width, size 5 visible cards per reel & compute each reel's exact targetX
+            const firstViewport = activeReels[0].viewportEl;
+            void firstViewport.offsetWidth;
 
             const W = WINNING_SLOT_INDEX;
-            const rouletteContainerWidth = caseRouletteViewport.clientWidth;
-            const computedStyle = window.getComputedStyle(caseRouletteTrack);
+            const rouletteContainerWidth = firstViewport.clientWidth;
+            const computedStyle = window.getComputedStyle(activeReels[0].trackEl);
             const gap = parseFloat(computedStyle.gap || computedStyle.columnGap || '8') || 8;
             const cardWidth = (rouletteContainerWidth - (4 * gap)) / 5;
-
-            caseRouletteTrack.style.setProperty('--roulette-card-width', `${cardWidth}px`);
-            void caseRouletteTrack.offsetWidth;
-
             const itemTotalWidth = cardWidth + gap;
             const cardCenterPosition = (W * itemTotalWidth) + (cardWidth / 2);
             const viewportCenter = rouletteContainerWidth / 2;
-            const jitter = (Math.random() * 0.4 - 0.2) * cardWidth;
-            const targetX = cardCenterPosition - viewportCenter + jitter;
 
-            // 5. Animate translateX(-targetX px) over 6s cubic-bezier(0.15, 0.9, 0.25, 1) & play tick sound on each slot pass
-            caseRouletteTrack.style.transition = 'transform 6s cubic-bezier(0.15, 0.9, 0.25, 1)';
-            caseRouletteTrack.style.transform = `translateX(-${targetX}px)`;
+            activeReels.forEach(reel => {
+                reel.trackEl.style.setProperty('--roulette-card-width', `${cardWidth}px`);
+                void reel.trackEl.offsetWidth;
+                const jitter = (Math.random() * 0.4 - 0.2) * cardWidth;
+                reel.targetX = cardCenterPosition - viewportCenter + jitter;
+            });
+
+            // 4. Start simultaneous 6s cubic-bezier(0.15, 0.9, 0.25, 1) spin across all reels + support Skip button
+            let wasSkipped = false;
+            const primaryTrackEl = activeReels[0].trackEl;
+
+            activeReels.forEach(reel => {
+                reel.trackEl.style.transition = 'transform 6s cubic-bezier(0.15, 0.9, 0.25, 1)';
+                reel.trackEl.style.transform = `translateX(-${reel.targetX}px)`;
+            });
 
             await new Promise((resolve) => {
                 let settled = false;
                 let rafId = null;
+                let timeoutId = null;
                 let lastSlotUnderCursor = Math.floor(viewportCenter / itemTotalWidth);
 
                 const trackSlotTicks = () => {
                     if (settled) return;
-                    const currentTx = getTrackTranslateX(caseRouletteTrack);
+                    const currentTx = getTrackTranslateX(primaryTrackEl);
                     const scrollOffset = Math.max(0, -currentTx);
                     const cursorTrackX = scrollOffset + viewportCenter;
                     const currentSlotIdx = Math.floor(cursorTrackX / itemTotalWidth);
@@ -1057,43 +1258,70 @@
                 const finish = () => {
                     if (settled) return;
                     settled = true;
+                    activeSkipSpinHandler = null;
                     if (rafId !== null) {
                         cancelAnimationFrame(rafId);
                     }
-                    caseRouletteTrack.removeEventListener('transitionend', onTransitionEnd);
+                    if (timeoutId !== null) {
+                        clearTimeout(timeoutId);
+                    }
+                    primaryTrackEl.removeEventListener('transitionend', onTransitionEnd);
                     resolve();
                 };
+
                 const onTransitionEnd = (e) => {
-                    if (e.target === caseRouletteTrack && e.propertyName === 'transform') {
+                    if (e.target === primaryTrackEl && e.propertyName === 'transform') {
                         finish();
                     }
                 };
-                caseRouletteTrack.addEventListener('transitionend', onTransitionEnd);
-                setTimeout(finish, ROULETTE_SPIN_DURATION_MS + 80);
+
+                activeSkipSpinHandler = () => {
+                    if (settled) return;
+                    wasSkipped = true;
+                    if (rouletteSkipBtn) {
+                        rouletteSkipBtn.disabled = true;
+                    }
+                    activeReels.forEach(reel => {
+                        reel.trackEl.style.transition = 'none';
+                        reel.trackEl.style.transform = `translateX(-${reel.targetX}px)`;
+                        void reel.trackEl.offsetWidth;
+                    });
+                    playSlotTickSound();
+                    finish();
+                };
+
+                primaryTrackEl.addEventListener('transitionend', onTransitionEnd);
+                timeoutId = setTimeout(finish, ROULETTE_SPIN_DURATION_MS + 80);
             });
 
-            // 6. Highlight winning slot 96, sync balance & leaderboard, unlock UI, and fade in win modal
-            const winningSlotEl = caseRouletteTrack.children[WINNING_SLOT_INDEX];
-            if (winningSlotEl) {
-                winningSlotEl.classList.add('winning-slot-highlight');
+            // 5. Highlight winning slot 96 across all reels, disable Skip button, and pause (1000ms on Skip, 280ms normal)
+            if (rouletteSkipBtn) {
+                rouletteSkipBtn.disabled = true;
             }
+            activeReels.forEach(reel => {
+                const winningSlotEl = reel.trackEl.children[WINNING_SLOT_INDEX];
+                if (winningSlotEl) {
+                    winningSlotEl.classList.add('winning-slot-highlight');
+                }
+            });
 
             updateBalanceDisplay(res.newBalance);
             if (isInstant) {
                 renderCasesMarketplaceGrid();
             }
             await syncTopRichLeaderboard();
-            await new Promise(r => setTimeout(r, 280));
+            await new Promise(r => setTimeout(r, wasSkipped ? 1000 : 280));
 
             if (caseRouletteModal) {
                 caseRouletteModal.classList.remove('open');
             }
             setSpinningLockState(false);
 
+            // 6. Display combined outcome in "You won" modal
             if (caseOutcomeModal) {
                 if (caseOutcomeTitle) {
-                    caseOutcomeTitle.textContent = isJackpot ? 'Jackpot!' : 'You won';
-                    caseOutcomeTitle.classList.toggle('jackpot', isJackpot);
+                    caseOutcomeTitle.textContent = anyJackpot ? 'Jackpot!' : 'You won';
+                    caseOutcomeTitle.classList.toggle('jackpot', anyJackpot);
                     caseOutcomeTitle.classList.remove('reveal-hidden');
                     caseOutcomeTitle.classList.add('reveal-visible');
                 }
@@ -1101,10 +1329,12 @@
                     caseOutcomeBody.classList.remove('reveal-hidden');
                     caseOutcomeBody.classList.add('reveal-visible');
                 }
-                caseOutcomeUsdtAmount.textContent = wonAmount > 0
-                    ? `+$${wonAmount.toFixed(2)} USDT (${formatMultiplierLabel(wonMultiplier)})`
+
+                caseOutcomeUsdtAmount.textContent = totalWonAmount > 0
+                    ? `+$${totalWonAmount.toFixed(2)} USDT`
                     : `$0.00 USDT`;
-                caseOutcomeUsdtAmount.classList.toggle('jackpot', isJackpot);
+
+                caseOutcomeUsdtAmount.classList.toggle('jackpot', anyJackpot);
                 caseOutcomeUsdtAmount.classList.remove('reveal-hidden');
                 caseOutcomeUsdtAmount.classList.add('reveal-visible');
 
@@ -1116,11 +1346,13 @@
                 caseOutcomeModal.classList.add('open');
             }
         } catch (_) {
+            activeSkipSpinHandler = null;
             if (caseRouletteModal) {
                 caseRouletteModal.classList.remove('open');
             }
             setSpinningLockState(false);
         } finally {
+            activeSkipSpinHandler = null;
             isResolvingCaseOpen = false;
         }
     }

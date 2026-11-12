@@ -20,6 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -112,15 +113,32 @@ public class CaseOpeningService {
                 .toList();
     }
 
+    public static int validateQuantity(Integer rawQuantity) {
+        int qty = rawQuantity == null ? 1 : rawQuantity;
+        if (qty < 1 || qty > 5) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Quantity must be between 1 and 5"
+            );
+        }
+        return qty;
+    }
+
     /**
-     * Buys a case for the given user:
+     * Buys one or more cases (1..5) for the given user:
      * 1. Finds the case in DB by slug.
      * 2. Verifies {@code is_active} is true.
-     * 3. Deducts {@code case.price} from user balance.
-     * 4. Appends {@code case.slug} to {@code user.items}.
+     * 3. Deducts {@code case.price * quantity} from user balance.
+     * 4. Appends {@code quantity} copies of {@code case.slug} to {@code user.items}.
      */
     @Transactional
     public UserResponse buyCase(User user, String rawSlug) {
+        return buyCase(user, rawSlug, 1);
+    }
+
+    @Transactional
+    public UserResponse buyCase(User user, String rawSlug, int rawQuantity) {
+        int quantity = validateQuantity(rawQuantity);
         CaseEntity caseEntity = findCaseBySlugOrThrow(rawSlug);
         if (!caseEntity.isActive()) {
             throw new ResponseStatusException(
@@ -130,82 +148,73 @@ public class CaseOpeningService {
         }
 
         BigDecimal price = caseEntity.getPrice();
-        if (user.getBalance().compareTo(price) < 0) {
+        BigDecimal totalCost = price.multiply(BigDecimal.valueOf(quantity));
+        if (user.getBalance().compareTo(totalCost) < 0) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Insufficient funds to buy " + caseEntity.getSlug() + " ($" + price + "). Current balance: $" + user.getBalance()
+                    "Insufficient funds to buy " + (quantity > 1 ? quantity + "x " : "")
+                            + caseEntity.getSlug() + " ($" + totalCost + "). Current balance: $" + user.getBalance()
             );
         }
 
-        user.setBalance(user.getBalance().subtract(price));
-        user.getItems().add(caseEntity.getSlug());
+        user.setBalance(user.getBalance().subtract(totalCost));
+        for (int i = 0; i < quantity; i++) {
+            user.getItems().add(caseEntity.getSlug());
+        }
         return UserResponse.fromEntity(userRepository.save(user));
     }
 
     /**
-     * Opens an owned case for the given user:
-     * 1. Verifies the user owns the case slug in {@code user.items} and removes one instance.
+     * Opens one or more owned cases (1..5) for the given user:
+     * 1. Verifies the user owns at least {@code quantity} copies of the case slug in {@code user.items} and removes them.
      * 2. Parses {@code paytable_json} for that case and passes the parsed {@link List} to {@link CaseOpenerEngine}.
-     * 3. Records bankroll accounting under pessimistic lock.
-     * 4. Credits the won amount to user balance.
+     * 3. Executes {@code quantity} independent spins under pessimistic lock.
+     * 4. Credits the combined total won amount to user balance.
      */
     @Transactional
     public OpenCaseResponse openCaseForUser(User user, String rawSlug) {
+        return openCaseForUser(user, rawSlug, 1);
+    }
+
+    @Transactional
+    public OpenCaseResponse openCaseForUser(User user, String rawSlug, int rawQuantity) {
+        int quantity = validateQuantity(rawQuantity);
         CaseEntity caseEntity = findCaseBySlugOrThrow(rawSlug);
         String slug = caseEntity.getSlug();
 
-        boolean removed = user.getItems().remove(slug);
-        if (!removed) {
+        long ownedCount = user.getItems().stream().filter(slug::equals).count();
+        if (ownedCount < quantity) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "You do not own any " + slug + " in your inventory"
+                    quantity == 1
+                            ? "You do not own any " + slug + " in your inventory"
+                            : "You only own " + ownedCount + "x " + slug + " in your inventory (requested x" + quantity + ")"
             );
         }
+        for (int i = 0; i < quantity; i++) {
+            user.getItems().remove(slug);
+        }
 
-        List<CaseOpenerEngine.PaytableTier> paytableTiers = caseOpenerEngine.parsePaytableJson(
-                caseEntity.getPaytableJson()
-        );
-        List<CaseOpenerEngine.Outcome> paytable = caseOpenerEngine.toOutcomes(
-                caseEntity.getPrice(),
-                paytableTiers
-        );
-
-        SpinResult spinResult = openWithPaytable(caseEntity.getSlug(), caseEntity.getPrice(), paytable);
-        CaseOpenerEngine.Outcome outcome = spinResult.outcome();
-        CaseOpenerEngine.CaseMathStats stats = caseOpenerEngine.calculateStats(slug, caseEntity.getPrice(), paytable);
-        boolean isJackpot = caseOpenerEngine.isMaxWin(paytable, outcome.winAmount());
-
-        user.setBalance(user.getBalance().add(outcome.winAmount()));
-        User savedUser = userRepository.save(user);
-
-        return new OpenCaseResponse(
-                savedUser.getUsername(),
-                slug,
-                caseEntity.getPrice(),
-                outcome.multiplier(),
-                outcome.winAmount(),
-                isJackpot,
-                outcome.tierLabel(),
-                savedUser.getBalance(),
-                List.copyOf(savedUser.getItems()),
-                stats.expectedValue(),
-                stats.rtpPercent(),
-                stats.variance(),
-                paytableTiers
-        );
+        return executeMultiSpinAndCreditUser(user, caseEntity, quantity);
     }
 
     /**
-     * Instantly opens a case directly from the marketplace for the given user without touching inventory:
+     * Instantly opens one or more cases (1..5) directly from the marketplace for the given user without touching inventory:
      * 1. Finds the case in DB by slug and verifies {@code is_active} is true.
-     * 2. Validates {@code user.balance >= case.price} (throws HTTP 400 if insufficient).
-     * 3. Atomically deducts {@code case.price} from user balance.
-     * 4. Runs spin calculation via {@link CaseOpenerEngine} and bankroll accounting under pessimistic lock.
-     * 5. Credits the won payout back to user balance and saves user state.
-     * 6. Returns the standard {@link OpenCaseResponse} payload.
+     * 2. Validates {@code user.balance >= case.price * quantity} (throws HTTP 400 if insufficient).
+     * 3. Atomically deducts {@code case.price * quantity} from user balance.
+     * 4. Runs {@code quantity} independent spin calculations via {@link CaseOpenerEngine} and bankroll accounting.
+     * 5. Credits the combined won payout back to user balance and saves user state.
+     * 6. Returns the {@link OpenCaseResponse} payload including individual {@code spins} and {@code totalWonAmount}.
      */
     @Transactional
     public OpenCaseResponse instantOpenCase(User user, String rawSlug) {
+        return instantOpenCase(user, rawSlug, 1);
+    }
+
+    @Transactional
+    public OpenCaseResponse instantOpenCase(User user, String rawSlug, int rawQuantity) {
+        int quantity = validateQuantity(rawQuantity);
         CaseEntity caseEntity = findCaseBySlugOrThrow(rawSlug);
         if (!caseEntity.isActive()) {
             throw new ResponseStatusException(
@@ -216,16 +225,24 @@ public class CaseOpeningService {
 
         String slug = caseEntity.getSlug();
         BigDecimal price = caseEntity.getPrice();
-        if (user.getBalance().compareTo(price) < 0) {
+        BigDecimal totalCost = price.multiply(BigDecimal.valueOf(quantity));
+        if (user.getBalance().compareTo(totalCost) < 0) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Insufficient funds to open " + slug + " ($" + price + "). Current balance: $" + user.getBalance()
+                    "Insufficient funds to open " + (quantity > 1 ? quantity + "x " : "")
+                            + slug + " ($" + totalCost + "). Current balance: $" + user.getBalance()
             );
         }
 
-        // Deduct crate price before spin
-        user.setBalance(user.getBalance().subtract(price));
+        // Deduct total crate cost before spinning
+        user.setBalance(user.getBalance().subtract(totalCost));
 
+        return executeMultiSpinAndCreditUser(user, caseEntity, quantity);
+    }
+
+    private OpenCaseResponse executeMultiSpinAndCreditUser(User user, CaseEntity caseEntity, int quantity) {
+        String slug = caseEntity.getSlug();
+        BigDecimal price = caseEntity.getPrice();
         List<CaseOpenerEngine.PaytableTier> paytableTiers = caseOpenerEngine.parsePaytableJson(
                 caseEntity.getPaytableJson()
         );
@@ -233,30 +250,49 @@ public class CaseOpeningService {
                 price,
                 paytableTiers
         );
-
-        SpinResult spinResult = openWithPaytable(slug, price, paytable);
-        CaseOpenerEngine.Outcome outcome = spinResult.outcome();
         CaseOpenerEngine.CaseMathStats stats = caseOpenerEngine.calculateStats(slug, price, paytable);
-        boolean isJackpot = caseOpenerEngine.isMaxWin(paytable, outcome.winAmount());
 
-        // Credit won payout to user balance and persist without modifying inventory items
-        user.setBalance(user.getBalance().add(outcome.winAmount()));
+        List<OpenCaseResponse.SpinOutcome> spins = new ArrayList<>(quantity);
+        BigDecimal totalWonAmount = BigDecimal.ZERO;
+        boolean anyJackpot = false;
+
+        for (int i = 0; i < quantity; i++) {
+            SpinResult spinResult = openWithPaytable(slug, price, paytable);
+            CaseOpenerEngine.Outcome outcome = spinResult.outcome();
+            boolean isJackpot = caseOpenerEngine.isMaxWin(paytable, outcome.winAmount());
+            if (isJackpot) {
+                anyJackpot = true;
+            }
+            totalWonAmount = totalWonAmount.add(outcome.winAmount());
+            spins.add(new OpenCaseResponse.SpinOutcome(
+                    outcome.winAmount(),
+                    outcome.multiplier(),
+                    outcome.tierLabel(),
+                    isJackpot
+            ));
+        }
+
+        user.setBalance(user.getBalance().add(totalWonAmount));
         User savedUser = userRepository.save(user);
 
+        OpenCaseResponse.SpinOutcome firstSpin = spins.get(0);
         return new OpenCaseResponse(
                 savedUser.getUsername(),
                 slug,
                 price,
-                outcome.multiplier(),
-                outcome.winAmount(),
-                isJackpot,
-                outcome.tierLabel(),
+                firstSpin.wonMultiplier(),
+                totalWonAmount,
+                anyJackpot,
+                firstSpin.outcomeTier(),
                 savedUser.getBalance(),
                 List.copyOf(savedUser.getItems()),
                 stats.expectedValue(),
                 stats.rtpPercent(),
                 stats.variance(),
-                paytableTiers
+                paytableTiers,
+                quantity,
+                totalWonAmount,
+                List.copyOf(spins)
         );
     }
 

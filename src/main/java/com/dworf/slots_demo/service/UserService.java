@@ -424,11 +424,11 @@ public class UserService {
         if (request.item() == null || request.item().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Case slug must be provided");
         }
-        return caseOpeningService.buyCase(user, request.item());
+        return caseOpeningService.buyCase(user, request.item(), request.resolvedQuantity());
     }
 
     /**
-     * Opens one instance of the requested case from the player's inventory using the
+     * Opens one or more instances (1..5) of the requested case from the player's inventory using the
      * database-backed CaseOpeningService & CaseOpenerEngine and immediately credits
      * the won USDT amount to the player's balance.
      */
@@ -438,15 +438,15 @@ public class UserService {
         if (request.item() == null || request.item().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Case slug must be provided");
         }
-        OpenCaseResponse res = caseOpeningService.openCaseForUser(user, request.item());
+        OpenCaseResponse res = caseOpeningService.openCaseForUser(user, request.item(), request.resolvedQuantity());
         recordCaseOpenLiveFeed(res);
         return res;
     }
 
     /**
-     * Instantly opens the requested case directly from the marketplace (bypassing inventory check),
-     * atomically deducting the crate price from the player's balance, running the spin via
-     * CaseOpeningService & CaseOpenerEngine, and crediting the won USDT payout back to the player's balance.
+     * Instantly opens one or more instances (1..5) of the requested case directly from the marketplace
+     * (bypassing inventory check), atomically deducting the crate price * quantity from the player's balance,
+     * running the spins via CaseOpeningService & CaseOpenerEngine, and crediting the combined won USDT payout.
      */
     @Transactional
     public OpenCaseResponse instantOpenCase(ItemOperationRequest request) {
@@ -454,7 +454,7 @@ public class UserService {
         if (request.item() == null || request.item().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Case slug must be provided");
         }
-        OpenCaseResponse res = caseOpeningService.instantOpenCase(user, request.item());
+        OpenCaseResponse res = caseOpeningService.instantOpenCase(user, request.item(), request.resolvedQuantity());
         recordCaseOpenLiveFeed(res);
         return res;
     }
@@ -468,13 +468,26 @@ public class UserService {
             }
         } catch (Exception ignored) {
         }
-        recordLiveFeedEvent(new LiveFeedEventResponse(
-                res.username(),
-                res.wonAmount(),
-                caseName,
-                res.outcomeTier(),
-                Instant.now()
-        ));
+        List<OpenCaseResponse.SpinOutcome> spins = res.spins();
+        if (spins != null && !spins.isEmpty()) {
+            for (OpenCaseResponse.SpinOutcome spin : spins) {
+                recordLiveFeedEvent(new LiveFeedEventResponse(
+                        res.username(),
+                        spin.wonAmount(),
+                        caseName,
+                        spin.outcomeTier(),
+                        Instant.now()
+                ));
+            }
+        } else {
+            recordLiveFeedEvent(new LiveFeedEventResponse(
+                    res.username(),
+                    res.wonAmount(),
+                    caseName,
+                    res.outcomeTier(),
+                    Instant.now()
+            ));
+        }
     }
 
     public void recordLiveFeedEvent(LiveFeedEventResponse event) {
