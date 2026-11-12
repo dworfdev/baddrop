@@ -38,9 +38,11 @@
     const topUsername = document.getElementById('topUsername');
     const topBalance = document.getElementById('topBalance');
     const openBalanceModalBtn = document.getElementById('openBalanceModalBtn');
+    const topbarAvatarBtn = document.getElementById('topbarAvatarBtn');
 
     // DOM Elements - Games & Cases Marketplace View
-    const liveRichList = document.getElementById('liveRichList');
+    const liveActivityBar = document.getElementById('liveActivityBar');
+    const liveTickerTrack = document.getElementById('liveTickerTrack');
     const openCasesPageBtn = document.getElementById('openCasesPageBtn');
     const backToGamesBtn = document.getElementById('backToGamesBtn');
     const casesSearchInput = document.getElementById('casesSearchInput');
@@ -55,6 +57,8 @@
     // DOM Elements - Profile View
     const profileUsername = document.getElementById('profileUsername');
     const profilePassword = document.getElementById('profilePassword');
+    const profileDepositBtn = document.getElementById('profileDepositBtn');
+    const profileWithdrawBtn = document.getElementById('profileWithdrawBtn');
     const togglePasswordVisBtn = document.getElementById('togglePasswordVisBtn');
     const changePasswordBtn = document.getElementById('changePasswordBtn');
     let isPasswordVisible = false;
@@ -69,6 +73,7 @@
     const balanceModalTitle = document.getElementById('balanceModalTitle');
     const closeBalanceModalBtn = document.getElementById('closeBalanceModalBtn');
     const modalBalanceAmount = document.getElementById('modalBalanceAmount');
+    const walletStep1Actions = document.getElementById('walletStep1Actions');
     const modalDepositBtn = document.getElementById('modalDepositBtn');
     const modalWithdrawBtn = document.getElementById('modalWithdrawBtn');
 
@@ -242,22 +247,66 @@
         renderInventoryGrid();
     }
 
-    async function syncTopRichLeaderboard() {
-        const topUsers = await callApi('GET', '/api/users/top');
-        liveRichList.innerHTML = '';
-        if (!topUsers || topUsers.length === 0) {
-            liveRichList.innerHTML = '<div class="rich-user-balance">No players yet</div>';
-            return;
+    let liveFeedPollIntervalId = null;
+
+    function resolveCaseDisplayName(rawCaseNameOrSlug) {
+        const raw = String(rawCaseNameOrSlug || '').trim();
+        if (!raw) return 'CASE';
+        const match = casesCatalog.find(
+            c => c && (c.slug === raw || String(c.name || '').toUpperCase() === raw.toUpperCase())
+        );
+        const fullTitle = match && match.name ? String(match.name).trim() : raw;
+        const stripped = fullTitle.replace(/\s+CASE$/i, '').trim();
+        return stripped || fullTitle;
+    }
+
+    function formatLiveFeedEventText(ev) {
+        if (!ev || !ev.username) return '';
+        const username = String(ev.username).trim();
+        const rawAmount = ev.wonAmount !== undefined && ev.wonAmount !== null ? ev.wonAmount : ev.amount;
+        const amountStr = (Number(rawAmount) || 0).toFixed(2);
+        const caseName = resolveCaseDisplayName(ev.caseName || ev.openedCase);
+        return `${username} won $${amountStr} from ${caseName}`;
+    }
+
+    function ensureLiveFeedPolling() {
+        if (!liveFeedPollIntervalId) {
+            liveFeedPollIntervalId = setInterval(() => {
+                if (playerScreen && playerScreen.classList.contains('active')) {
+                    syncTopRichLeaderboard();
+                }
+            }, 12000);
         }
-        topUsers.slice(0, 3).forEach((u, index) => {
-            const item = document.createElement('div');
-            item.className = 'rich-user-item';
-            item.innerHTML = `
-                <div class="rich-user-name">${index + 1}. ${u.username}</div>
-                <div class="rich-user-balance">$${Number(u.balance).toFixed(2)}</div>
-            `;
-            liveRichList.appendChild(item);
-        });
+    }
+
+    async function syncTopRichLeaderboard() {
+        ensureLiveFeedPolling();
+        if (!liveActivityBar || !liveTickerTrack) return;
+        try {
+            const events = await callApi('GET', '/api/live-feed', null, false);
+            if (!Array.isArray(events) || events.length === 0) {
+                liveTickerTrack.innerHTML = '';
+                liveActivityBar.style.display = 'none';
+                return;
+            }
+            liveTickerTrack.innerHTML = '';
+            let renderedCount = 0;
+            events.slice(0, 2).forEach(ev => {
+                const text = formatLiveFeedEventText(ev);
+                if (!text) return;
+                const tierMeta = classifySlotTier(ev.outcomeTier || '');
+                const pill = document.createElement('div');
+                pill.className = `live-event-pill ${tierMeta.className}`;
+                pill.textContent = text;
+                liveTickerTrack.appendChild(pill);
+                renderedCount++;
+            });
+            liveActivityBar.style.display = renderedCount > 0 ? 'flex' : 'none';
+        } catch (_) {
+            if (!liveTickerTrack.children.length) {
+                liveActivityBar.style.display = 'none';
+            }
+        }
     }
 
     async function loadAppConfig() {
@@ -349,6 +398,15 @@
             } catch (_) {}
         });
     });
+
+    if (topbarAvatarBtn) {
+        topbarAvatarBtn.addEventListener('click', () => {
+            const profileNavBtn = document.querySelector('.nav-tab[data-target="tab-profile"]');
+            if (profileNavBtn) {
+                profileNavBtn.click();
+            }
+        });
+    }
 
     // =========================================================================
     // TAB 1 & TAB 1B: GAMES & DYNAMIC CASES MARKETPLACE INTERACTION
@@ -871,7 +929,7 @@
 
     function setSpinningLockState(locked) {
         const interactiveControls = document.querySelectorAll(
-            '[data-open-crate], [data-instant-open-crate], [data-buy-crate], [data-view-crate], #inventorySearchInput, #inventoryFilterBtn, #casesSearchInput, #casesFilterBtn, #backToGamesBtn, .nav-tab, #openBalanceModalBtn'
+            '[data-open-crate], [data-instant-open-crate], [data-buy-crate], [data-view-crate], #inventorySearchInput, #inventoryFilterBtn, #casesSearchInput, #casesFilterBtn, #backToGamesBtn, .nav-tab, #openBalanceModalBtn, #topbarAvatarBtn, #profileDepositBtn, #profileWithdrawBtn'
         );
         interactiveControls.forEach(el => {
             if (locked) {
@@ -1093,6 +1151,20 @@
     let userHasPendingTransaction = false;
     let userHasApprovedDeposit = false;
     let pendingWithdrawAmount = 0;
+    let activeWalletModalMode = 'DEPOSIT';
+
+    function applyWalletStep1ActionMode(mode) {
+        activeWalletModalMode = mode === 'WITHDRAW' ? 'WITHDRAW' : 'DEPOSIT';
+        if (walletStep1Actions) {
+            walletStep1Actions.classList.add('single');
+        }
+        if (modalDepositBtn) {
+            modalDepositBtn.style.display = activeWalletModalMode === 'DEPOSIT' ? '' : 'none';
+        }
+        if (modalWithdrawBtn) {
+            modalWithdrawBtn.style.display = activeWalletModalMode === 'WITHDRAW' ? '' : 'none';
+        }
+    }
 
     function stopDepositCountdown() {
         if (depositCountdownTimerId) {
@@ -1135,7 +1207,7 @@
         depositCountdownTimerId = setInterval(tick, 1000);
     }
 
-    function setWalletStep(stepNumber, mode = 'DEPOSIT') {
+    function setWalletStep(stepNumber, mode = activeWalletModalMode) {
         [walletStep1, walletStep2, walletStep3].forEach((el, idx) => {
             if (el) {
                 el.classList.toggle('active', idx + 1 === stepNumber);
@@ -1143,7 +1215,8 @@
         });
 
         if (stepNumber === 1) {
-            balanceModalTitle.textContent = 'Balance Wallet';
+            applyWalletStep1ActionMode(mode);
+            balanceModalTitle.textContent = activeWalletModalMode === 'WITHDRAW' ? 'Withdraw Wallet' : 'Deposit Wallet';
         } else if (stepNumber === 2) {
             balanceModalTitle.textContent = mode === 'WITHDRAW' ? 'Withdraw (USDT / Ton)' : 'Deposit (USDT / Ton)';
             step2DepositPanel.classList.toggle('active', mode === 'DEPOSIT');
@@ -1188,14 +1261,38 @@
         return false;
     }
 
-    openBalanceModalBtn.addEventListener('click', async () => {
-        const hasActive = await checkAndRestoreActiveDeposit(false);
-        if (!hasActive) {
+    async function openWalletModal(mode = 'DEPOSIT') {
+        applyWalletStep1ActionMode(mode);
+        if (mode === 'DEPOSIT') {
+            const hasActive = await checkAndRestoreActiveDeposit(false);
+            if (!hasActive) {
+                modalBalanceAmount.value = '0';
+                setWalletStep(1, 'DEPOSIT');
+            }
+        } else {
             modalBalanceAmount.value = '0';
-            setWalletStep(1);
+            setWalletStep(1, 'WITHDRAW');
         }
         balanceModal.classList.add('open');
-    });
+    }
+
+    if (openBalanceModalBtn) {
+        openBalanceModalBtn.addEventListener('click', () => {
+            openWalletModal('DEPOSIT');
+        });
+    }
+
+    if (profileDepositBtn) {
+        profileDepositBtn.addEventListener('click', () => {
+            openWalletModal('DEPOSIT');
+        });
+    }
+
+    if (profileWithdrawBtn) {
+        profileWithdrawBtn.addEventListener('click', () => {
+            openWalletModal('WITHDRAW');
+        });
+    }
 
     closeBalanceModalBtn.addEventListener('click', () => {
         balanceModal.classList.remove('open');

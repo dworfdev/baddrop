@@ -10,7 +10,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css?v=26" />
+    <link rel="stylesheet" href="/styles.css?v=31" />
 </head>
 
 <body>
@@ -45,15 +45,20 @@
     <!-- =================================================================== -->
     <div id="playerScreen" class="screen-wrapper">
         <div class="player-frame">
-            <!-- PERSISTENT TOP BAR: username | balance | "+" button(for balance) -->
+            <!-- PERSISTENT TOP BAR: username | balance | Deposit button | Avatar -->
             <header class="player-topbar">
                 <div class="topbar-user-cluster">
                     <span id="topUsername" class="top-username">username</span>
                     <span class="top-divider">|</span>
                     <span class="top-balance">$<span id="topBalance">0.00</span></span>
-                    <span class="top-divider">|</span>
-                    <button id="openBalanceModalBtn" type="button" class="plus-balance-btn"
-                        title="Deposit or Withdraw Balance">+</button>
+                    <div class="topbar-right-actions">
+                        <button id="openBalanceModalBtn" type="button" class="topbar-deposit-btn"
+                            title="Deposit Balance">Deposit</button>
+                        <button id="topbarAvatarBtn" type="button" class="topbar-avatar-btn"
+                            title="Open Profile">
+                            <img src="/imgs/mock_avatar.png" alt="User Avatar" class="topbar-avatar-img" />
+                        </button>
+                    </div>
                 </div>
             </header>
 
@@ -63,21 +68,21 @@
                 <!-- TAB 1: GAMES VIEW                                       -->
                 <!-- ======================================================= -->
                 <section id="tab-game" class="tab-view active">
+                    <!-- Compact Single-Row Horizontal LIVE Activity Ticker Bar -->
+                    <div id="liveActivityBar" class="live-activity-bar" style="display: none;" aria-live="polite">
+                        <div class="live-indicator-badge">
+                            <span class="live-dot"></span>
+                            <span class="live-label-text">LIVE</span>
+                        </div>
+                        <div id="liveTickerTrack" class="live-ticker-track">
+                            <!-- Populated dynamically with up to 2 real platform activity pills -->
+                        </div>
+                    </div>
+
                     <!-- Main Top Banner (960 x 720) -->
                     <div id="featuredBanner" class="featured-game-banner">
                         <img id="bannerImg" src="/imgs/main-top-banner.png" alt="Cases on marketplace are available now"
                             class="banner-image" />
-                    </div>
-
-                    <!-- LIVE (3 most rich users in column in order with their balances underneath) -->
-                    <div class="live-leaderboard-section">
-                        <div class="live-header">
-                            <span class="live-dot"></span>
-                            <h3>LIVE <span class="live-sub">(top richest players)</span></h3>
-                        </div>
-                        <div id="liveRichList" class="live-rich-column">
-                            <!-- Populated dynamically -->
-                        </div>
                     </div>
 
                     <h2 class="section-heading">Games</h2>
@@ -106,7 +111,8 @@
                     <div class="inventory-toolbar">
                         <input id="casesSearchInput" type="text" class="search-input" placeholder="find by name..."
                             autocomplete="off" />
-                        <button id="casesFilterBtn" type="button" class="filter-btn">Filter: Price (Low &rarr; High)</button>
+                        <button id="casesFilterBtn" type="button" class="filter-btn">Filter: Price (Low &rarr;
+                            High)</button>
                     </div>
 
                     <!-- Cases Marketplace Grid (3 max in row, price + BUY button) -->
@@ -147,6 +153,12 @@
                         </div>
                     </div>
 
+                    <!-- Deposit & Withdraw Side-by-Side Actions Beneath Avatar -->
+                    <div class="profile-wallet-actions">
+                        <button id="profileDepositBtn" type="button" class="pill-btn-primary">Deposit</button>
+                        <button id="profileWithdrawBtn" type="button" class="pill-btn-outline">Withdraw</button>
+                    </div>
+
                     <!-- User Info Lines -->
                     <div class="profile-info-list">
                         <div class="profile-info-line">
@@ -154,7 +166,8 @@
                         </div>
                         <div class="profile-info-line password-row">
                             <span>Password - <span id="profilePassword" class="mono-bold"></span></span>
-                            <button id="togglePasswordVisBtn" type="button" class="password-toggle-btn" title="Show or hide password">Show</button>
+                            <button id="togglePasswordVisBtn" type="button" class="password-toggle-btn"
+                                title="Show or hide password">Show</button>
                         </div>
                     </div>
 
@@ -216,7 +229,7 @@
                     <button type="button" class="modal-chip" data-amt="10">$10</button>
                     <button type="button" class="modal-chip" data-amt="20">$20</button>
                 </div>
-                <div class="modal-actions">
+                <div id="walletStep1Actions" class="modal-actions single">
                     <button id="modalDepositBtn" type="button" class="pill-btn-primary">+ Deposit</button>
                     <button id="modalWithdrawBtn" type="button" class="pill-btn-outline">&minus; Withdraw</button>
                 </div>
@@ -235,7 +248,8 @@
                     <div class="modal-field">
                         <label>Deposit Address (click to copy)</label>
                         <div class="copiable-address-box" id="copyAddressBox" title="Click to copy address">
-                            <span id="depositAddressText" class="address-code">UQCys13azAWTFuERWwjc_5sqKZxQEhJhbtGGaiyp2Sf55Hrg</span>
+                            <span id="depositAddressText"
+                                class="address-code">UQCys13azAWTFuERWwjc_5sqKZxQEhJhbtGGaiyp2Sf55Hrg</span>
                             <button id="copyDepositAddressBtn" type="button" class="copy-chip-btn">Copy</button>
                         </div>
                     </div>
@@ -254,7 +268,9 @@
                         </p>
                         <div class="payment-attention-box">
                             <span class="attention-title">ATTENTION!</span>
-                            <span>If you will not send screenshot with your in-game user &mdash; transaction will be declined. The specified amount does not include network or processing fees; all transaction fees must be paid entirely by the user.</span>
+                            <span>If you will not send screenshot with your in-game user &mdash; transaction will be
+                                declined. The specified amount does not include network or processing fees; all
+                                transaction fees must be paid entirely by the user.</span>
                         </div>
                     </div>
 
@@ -272,14 +288,18 @@
                     </div>
 
                     <div class="modal-field">
-                        <label for="withdrawWalletAddressInput">Your USDT (Ton) Address <span class="required-star">*</span></label>
-                        <input id="withdrawWalletAddressInput" type="text" placeholder="Enter your TON wallet address..." autocomplete="off" required />
+                        <label for="withdrawWalletAddressInput">Your USDT (Ton) Address <span
+                                class="required-star">*</span></label>
+                        <input id="withdrawWalletAddressInput" type="text"
+                            placeholder="Enter your TON wallet address..." autocomplete="off" required />
                     </div>
 
                     <div class="admin-payment-note withdraw-attention-note">
                         <div class="payment-attention-box">
                             <span class="attention-title">ATTENTION!</span>
-                            <span>If you will submit wrong address &mdash; you will lose your money. The specified amount does not include network or processing fees; all transaction fees must be paid entirely by the user.</span>
+                            <span>If you will submit wrong address &mdash; you will lose your money. The specified
+                                amount does not include network or processing fees; all transaction fees must be paid
+                                entirely by the user.</span>
                         </div>
                     </div>
 
@@ -325,7 +345,8 @@
             </div>
             <div class="modal-field">
                 <label for="currentPasswordInput">Current Password</label>
-                <input id="currentPasswordInput" type="password" placeholder="Enter current password" autocomplete="off" />
+                <input id="currentPasswordInput" type="password" placeholder="Enter current password"
+                    autocomplete="off" />
             </div>
             <div class="modal-field">
                 <label for="newPasswordInput">New Password</label>
@@ -365,22 +386,21 @@
             </div>
             <div class="payment-attention-box">
                 <span class="attention-title">ATTENTION!</span>
-                <span>You will permanently lose all access, balance, inventory, and your account completely. This action cannot be undone.</span>
+                <span>You will permanently lose all access, balance, inventory, and your account completely. This action
+                    cannot be undone.</span>
             </div>
             <div class="modal-field">
                 <label for="deleteAccountConfirmInput">
                     To confirm, type the exact sentence below:
                 </label>
-                <div id="deleteAccountTargetPhrase" class="delete-phrase-highlight">I agree to permanently delete my account</div>
-                <input
-                    id="deleteAccountConfirmInput"
-                    type="text"
-                    placeholder="I agree to permanently delete my account"
-                    autocomplete="off"
-                />
+                <div id="deleteAccountTargetPhrase" class="delete-phrase-highlight">I agree to permanently delete my
+                    account</div>
+                <input id="deleteAccountConfirmInput" type="text" placeholder="I agree to permanently delete my account"
+                    autocomplete="off" />
             </div>
             <div class="modal-actions">
-                <button id="cancelDeleteAccountBtn" type="button" class="text-btn-secondary auth-equal-btn">Cancel</button>
+                <button id="cancelDeleteAccountBtn" type="button"
+                    class="text-btn-secondary auth-equal-btn">Cancel</button>
                 <button id="confirmDeleteAccountBtn" type="button" class="pill-btn-outline">Delete Account</button>
             </div>
         </div>
@@ -446,7 +466,7 @@
     </div>
 
     <div id="toastContainer" class="toast-container"></div>
-    <script src="/app.js?v=26"></script>
+    <script src="/app.js?v=31"></script>
 </body>
 
 </html>

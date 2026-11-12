@@ -8,6 +8,7 @@ import com.dworf.slots_demo.dto.ConfirmDepositRequest;
 import com.dworf.slots_demo.dto.DepositSessionResponse;
 import com.dworf.slots_demo.dto.ItemOperationRequest;
 import com.dworf.slots_demo.dto.ItemsResponse;
+import com.dworf.slots_demo.dto.LiveFeedEventResponse;
 import com.dworf.slots_demo.dto.OpenCaseResponse;
 import com.dworf.slots_demo.dto.PromoRequest;
 import com.dworf.slots_demo.dto.UserCredentialsRequest;
@@ -163,6 +164,12 @@ public class UserController {
     @GetMapping("/api/users/top")
     public List<UserResponse> getTopRichUsers() {
         return userService.getTopRichUsers();
+    }
+
+    // 5b-feed) Get the 2 most recent real platform activity events for the LIVE bar (GET)
+    @GetMapping("/api/live-feed")
+    public List<LiveFeedEventResponse> getLiveFeed() {
+        return userService.getLiveFeed();
     }
 
     // 5c) Get 1 specific user (GET) - requests user's username (and optional password)

@@ -10,11 +10,13 @@ import com.dworf.slots_demo.dto.ConfirmDepositRequest;
 import com.dworf.slots_demo.dto.DepositSessionResponse;
 import com.dworf.slots_demo.dto.ItemOperationRequest;
 import com.dworf.slots_demo.dto.ItemsResponse;
+import com.dworf.slots_demo.dto.LiveFeedEventResponse;
 import com.dworf.slots_demo.dto.OpenCaseResponse;
 import com.dworf.slots_demo.dto.TransactionResponse;
 import com.dworf.slots_demo.dto.UserCredentialsRequest;
 import com.dworf.slots_demo.dto.UserResponse;
 import com.dworf.slots_demo.entity.BalanceTransaction;
+import com.dworf.slots_demo.entity.CaseEntity;
 import com.dworf.slots_demo.entity.TransactionStatus;
 import com.dworf.slots_demo.entity.TransactionType;
 import com.dworf.slots_demo.entity.User;
@@ -28,6 +30,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 
@@ -37,6 +41,9 @@ public class UserService {
     public static final long DEPOSIT_TIMER_SECONDS = 15 * 60L;
     public static final BigDecimal MIN_DEPOSIT_AMOUNT = new BigDecimal("1.00");
     public static final BigDecimal MIN_WITHDRAW_AMOUNT = new BigDecimal("2.50");
+    private static final int MAX_LIVE_FEED_SIZE = 2;
+
+    private final Deque<LiveFeedEventResponse> liveFeedBuffer = new ArrayDeque<>(MAX_LIVE_FEED_SIZE);
 
     private final UserRepository userRepository;
     private final BalanceTransactionRepository transactionRepository;
@@ -431,7 +438,9 @@ public class UserService {
         if (request.item() == null || request.item().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Case slug must be provided");
         }
-        return caseOpeningService.openCaseForUser(user, request.item());
+        OpenCaseResponse res = caseOpeningService.openCaseForUser(user, request.item());
+        recordCaseOpenLiveFeed(res);
+        return res;
     }
 
     /**
@@ -445,7 +454,45 @@ public class UserService {
         if (request.item() == null || request.item().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Case slug must be provided");
         }
-        return caseOpeningService.instantOpenCase(user, request.item());
+        OpenCaseResponse res = caseOpeningService.instantOpenCase(user, request.item());
+        recordCaseOpenLiveFeed(res);
+        return res;
+    }
+
+    private void recordCaseOpenLiveFeed(OpenCaseResponse res) {
+        String caseName = res.openedCase();
+        try {
+            CaseEntity caseEntity = caseOpeningService.findCaseBySlugOrThrow(res.openedCase());
+            if (caseEntity.getName() != null && !caseEntity.getName().isBlank()) {
+                caseName = caseEntity.getName();
+            }
+        } catch (Exception ignored) {
+        }
+        recordLiveFeedEvent(new LiveFeedEventResponse(
+                res.username(),
+                res.wonAmount(),
+                caseName,
+                res.outcomeTier(),
+                Instant.now()
+        ));
+    }
+
+    public void recordLiveFeedEvent(LiveFeedEventResponse event) {
+        if (event == null) {
+            return;
+        }
+        synchronized (liveFeedBuffer) {
+            liveFeedBuffer.addFirst(event);
+            while (liveFeedBuffer.size() > MAX_LIVE_FEED_SIZE) {
+                liveFeedBuffer.removeLast();
+            }
+        }
+    }
+
+    public List<LiveFeedEventResponse> getLiveFeed() {
+        synchronized (liveFeedBuffer) {
+            return List.copyOf(liveFeedBuffer);
+        }
     }
 
     @Transactional(readOnly = true)
