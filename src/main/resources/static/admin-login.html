@@ -7,24 +7,27 @@
   <meta name="robots" content="noindex">
   <style>
     :root { color-scheme: dark; }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0e0f13; color: #e8e8ee; font-family: system-ui, sans-serif; }
-    form { width: min(340px, 90vw); display: grid; gap: 12px; }
-    h1 { font-size: 1.1rem; margin: 0 0 4px; }
-    input, button { padding: 10px 12px; border-radius: 8px; border: 1px solid #333846; background: #171923; color: inherit; font-size: 1rem; }
-    button { background: #3b82f6; border-color: #3b82f6; cursor: pointer; }
-    button:disabled { opacity: .6; cursor: default; }
-    #error { color: #ff6b6b; min-height: 1.2em; font-size: .9rem; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0c0c0c; color: #cccccc; font-family: Consolas, "Cascadia Mono", "Lucida Console", "Courier New", monospace; font-size: 14px; }
+    form { width: min(380px, 92vw); display: grid; gap: 10px; border: 1px solid #3a3a3a; background: #121212; padding: 18px; }
+    h1 { font-size: 14px; letter-spacing: .06em; margin: 0 0 6px; color: #f9f1a5; }
+    input, button { padding: 8px 10px; border-radius: 0; border: 1px solid #6b6b6b; background: #000; color: #f2f2f2; font: inherit; }
+    input::placeholder { color: #767676; }
+    input:focus { outline: none; border-color: #61d6d6; }
+    button { background: transparent; color: #61d6d6; border-color: #61d6d6; cursor: pointer; }
+    button:hover:not(:disabled) { background: #61d6d6; color: #000; }
+    button:disabled { opacity: .5; cursor: default; }
+    #error { color: #e74856; min-height: 1.2em; font-size: 13px; }
   </style>
 </head>
 <body>
-  <form id="adminLoginForm" autocomplete="off">
-    <h1>Admin sign-in</h1>
-    <input id="adminUsername" name="username" placeholder="Username" autocomplete="username" required>
-    <input id="adminPassword" name="password" type="password" placeholder="Password" autocomplete="current-password" required>
-    <input id="adminTotp" name="totp" inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" required>
-    <button id="adminLoginBtn" type="submit">Sign in</button>
-    <div id="error" role="alert"></div>
-  </form>
-  <script src="/admin-login.js"></script>
+<form id="adminLoginForm" autocomplete="off">
+  <h1>&gt; BADDROP ADMIN SIGN-IN</h1>
+  <input id="adminUsername" name="username" placeholder="username" autocomplete="username" required>
+  <input id="adminPassword" name="password" type="password" placeholder="password" autocomplete="current-password" required>
+  <input id="adminTotp" name="totp" inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" required>
+  <button id="adminLoginBtn" type="submit">[ Sign in ]</button>
+  <div id="error" role="alert"></div>
+</form>
+<script src="/admin-login.js"></script>
 </body>
 </html>

@@ -3,161 +3,140 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BADDROP - Admin Panel</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/admin.css?v=15" />
+    <meta name="robots" content="noindex" />
+    <title>BADDROP - Admin Console</title>
+    <link rel="stylesheet" href="/admin.css?v=16" />
 </head>
 <body>
-    <div class="admin-frame">
-        <!-- TOP BAR WITH EXIT BUTTON -->
-        <header class="admin-topbar">
-            <div class="admin-title-cluster">
-                <span class="admin-badge-dot"></span>
-                <span>ADMIN PANEL</span>
-            </div>
-            <button id="exitAdminBtn" type="button" class="exit-btn">Exit</button>
-        </header>
+<div class="admin-frame">
+    <!-- TOP BAR -->
+    <header class="admin-topbar">
+        <div class="admin-title-cluster">
+            <span class="admin-badge-dot"></span>
+            <span>BADDROP ADMIN CONSOLE</span>
+        </div>
+        <button id="exitAdminBtn" type="button" class="exit-btn">[ Exit ]</button>
+    </header>
 
-        <!-- MAIN STAGE -->
-        <main class="admin-stage">
-            <!-- SEARCH BAR: FIND SPECIFIC USER -->
-            <section class="search-section">
-                <div class="search-bar-row">
-                    <input
+    <main class="admin-stage">
+        <!-- SEARCH -->
+        <section class="search-section">
+            <div class="search-bar-row">
+                <span class="prompt-mark">&gt;</span>
+                <input
                         id="userSearchInput"
                         type="text"
                         class="admin-search-input"
-                        placeholder="Search user by username..."
+                        placeholder="find user by username..."
                         autocomplete="off"
-                    />
-                    <button id="findUserBtn" type="button" class="admin-action-btn">Find User</button>
-                </div>
-            </section>
+                        spellcheck="false"
+                />
+                <button id="findUserBtn" type="button" class="admin-action-btn">[ Find user ]</button>
+            </div>
+        </section>
 
-            <!-- =========================================================== -->
-            <!-- VIEW 1 (DEFAULT): ALL USERS' PENDING TRANSACTIONS           -->
-            <!-- =========================================================== -->
-            <section id="defaultPendingView" class="admin-view active">
-                <!-- BANKROLL METRICS (profit pool / house profit) -->
-                <div class="bankroll-metrics" id="bankrollMetrics">
-                    <div class="metric-card metric-profit">
-                        <span class="metric-label">Profit Pool</span>
-                        <span class="metric-value" id="metricProfitPool">$0.00</span>
-                    </div>
-                    <div class="metric-card metric-house">
-                        <span class="metric-label">House Profit</span>
-                        <span class="metric-value" id="metricHouseProfit">$0.00</span>
-                    </div>
+        <!-- VIEW 1 (DEFAULT): PENDING TRANSACTIONS -->
+        <section id="defaultPendingView" class="admin-view active">
+            <div class="bankroll-metrics" id="bankrollMetrics">
+                <div class="metric-card metric-profit">
+                    <span class="metric-label">PROFIT POOL</span>
+                    <span class="metric-value" id="metricProfitPool">$0.00</span>
                 </div>
-
-                <!-- DESTRUCTIVE ACTION: RESET BANKROLL METRICS -->
+                <div class="metric-card metric-house">
+                    <span class="metric-label">HOUSE PROFIT</span>
+                    <span class="metric-value" id="metricHouseProfit">$0.00</span>
+                </div>
                 <div class="bankroll-actions">
-                    <button id="resetBankrollBtn" type="button" class="btn-destructive">Reset Bankroll Metrics</button>
+                    <button id="resetBankrollBtn" type="button" class="btn-destructive">[ Reset bankroll metrics ]</button>
                 </div>
+            </div>
 
-                <div class="view-header-row">
-                    <h1 class="section-heading">All Pending Transactions</h1>
-                    <button id="refreshPendingBtn" type="button" class="admin-outline-btn">Refresh</button>
+            <div class="view-header-row">
+                <h1 class="section-heading">PENDING TRANSACTIONS</h1>
+                <button id="refreshPendingBtn" type="button" class="admin-outline-btn">[ Refresh ]</button>
+            </div>
+
+            <div id="allPendingList" class="transactions-list">
+                <!-- Populated dynamically -->
+            </div>
+        </section>
+
+        <!-- VIEW 2: SPECIFIC USER -->
+        <section id="userDetailView" class="admin-view">
+            <div class="back-row">
+                <button id="backToDefaultBtn" type="button" class="admin-outline-btn">[ &lt; Back to pending ]</button>
+            </div>
+
+            <h1 class="section-heading">USER PROFILE</h1>
+
+            <div class="profile-info-list">
+                <div class="profile-info-line">
+                    username <span class="dim">:</span> <span id="adminDetailUsername" class="mono-bold"></span>
                 </div>
+                <div class="profile-info-line">
+                    balance&nbsp; <span class="dim">:</span> $<span id="adminDetailBalance" class="mono-bold">0.00</span>
+                </div>
+            </div>
 
-                <div id="allPendingList" class="transactions-list">
+            <div class="admin-subsection">
+                <h2 class="subsection-heading">PENDING TRANSACTIONS</h2>
+                <div id="userPendingList" class="transactions-list">
                     <!-- Populated dynamically -->
                 </div>
-            </section>
-
-            <!-- =========================================================== -->
-            <!-- VIEW 2: SPECIFIC USER ADMIN PROFILE                         -->
-            <!-- =========================================================== -->
-            <section id="userDetailView" class="admin-view">
-                <div class="back-row">
-                    <button id="backToDefaultBtn" type="button" class="admin-outline-btn">
-                        &larr; Back to pending transactions
-                    </button>
-                </div>
-
-                <h1 class="section-heading">User Profile (Admin)</h1>
-
-                <!-- Circular Avatar (same style as player profile page) -->
-                <div class="avatar-wrapper">
-                    <div class="mock-avatar-circle">
-                        <img src="/imgs/mock_avatar.png" alt="User Avatar" class="avatar-img" />
-                    </div>
-                </div>
-
-                <!-- Username & Balance Info -->
-                <div class="profile-info-list">
-                    <div class="profile-info-line">
-                        Username - <span id="adminDetailUsername" class="mono-bold"></span>
-                    </div>
-                    <div class="profile-info-line">
-                        Balance - $<span id="adminDetailBalance" class="mono-bold">0.00</span>
-                    </div>
-                </div>
-
-                <!-- User's Pending Transactions with APPROVE / REJECT -->
-                <div class="admin-subsection">
-                    <h2 class="subsection-heading">Pending Transactions</h2>
-                    <div id="userPendingList" class="transactions-list">
-                        <!-- Populated dynamically -->
-                    </div>
-                </div>
-
-                <!-- User's Saved Statistics Timeline (Green = Deposit, Red = Withdraw) -->
-                <div class="admin-subsection">
-                    <div class="stats-header-row">
-                        <h2 class="subsection-heading">User Statistics Timeline</h2>
-                        <div class="stats-legend">
-                            <span class="legend-item"><span class="legend-dot deposit"></span> Deposit (+)</span>
-                            <span class="legend-item"><span class="legend-dot withdraw"></span> Withdraw (&minus;)</span>
-                        </div>
-                    </div>
-                    <div id="userStatsSummaryRow" class="stats-summary-row"></div>
-                    <div id="userStatsTimeline" class="stats-timeline-card">
-                        <!-- Populated dynamically with Y-axis ($ amount) and X-axis (#count & date/time) -->
-                    </div>
-                </div>
-            </section>
-        </main>
-    </div>
-
-    <div id="toastContainer" class="toast-container"></div>
-
-    <!-- BANKROLL RESET CONFIRMATION MODAL -->
-    <div id="bankrollResetModal" class="admin-modal-backdrop" style="display: none;">
-        <div class="admin-modal-card">
-            <div class="admin-modal-header">
-                <h3 class="admin-modal-title">Reset Bankroll Metrics</h3>
-                <button type="button" id="closeResetModalBtn" class="admin-modal-close" aria-label="Close">&times;</button>
             </div>
-            <div class="admin-modal-body">
-                <p class="admin-modal-desc">
-                    This action will atomically reset both <strong>Profit Pool</strong> and <strong>House Profit</strong> to <strong>$0.00</strong>. This cannot be undone.
-                </p>
-                <label for="resetConfirmInput" class="admin-modal-label">
-                    Type <code class="phrase-code">RESET BANKROLL AS ADMIN</code> to confirm:
-                </label>
-                <input
+
+            <div class="admin-subsection">
+                <div class="stats-header-row">
+                    <h2 class="subsection-heading">TRANSACTION HISTORY</h2>
+                    <div class="stats-legend">
+                        <span class="legend-item"><span class="legend-dot deposit"></span> deposit (+)</span>
+                        <span class="legend-item"><span class="legend-dot withdraw"></span> withdraw (&minus;)</span>
+                    </div>
+                </div>
+                <div id="userStatsSummaryRow" class="stats-summary-row"></div>
+                <div id="userStatsTimeline" class="stats-timeline-card">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<div id="toastContainer" class="toast-container"></div>
+
+<!-- BANKROLL RESET CONFIRMATION -->
+<div id="bankrollResetModal" class="admin-modal-backdrop" style="display: none;">
+    <div class="admin-modal-card">
+        <div class="admin-modal-header">
+            <h3 class="admin-modal-title">RESET BANKROLL METRICS</h3>
+            <button type="button" id="closeResetModalBtn" class="admin-modal-close" aria-label="Close">[x]</button>
+        </div>
+        <div class="admin-modal-body">
+            <p class="admin-modal-desc">
+                Resets both <strong>Profit Pool</strong> and <strong>House Profit</strong> to <strong>$0.00</strong>. This cannot be undone.
+            </p>
+            <label for="resetConfirmInput" class="admin-modal-label">
+                Type <code class="phrase-code">RESET BANKROLL AS ADMIN</code> to confirm:
+            </label>
+            <input
                     type="text"
                     id="resetConfirmInput"
                     class="admin-modal-input"
                     placeholder="RESET BANKROLL AS ADMIN"
                     autocomplete="off"
                     spellcheck="false"
-                />
-                <div id="resetModalError" class="admin-modal-error" style="display: none;">
-                    Phrase does not match. Please enter exactly: RESET BANKROLL AS ADMIN
-                </div>
-            </div>
-            <div class="admin-modal-footer">
-                <button type="button" id="cancelResetModalBtn" class="admin-outline-btn">Cancel</button>
-                <button type="button" id="confirmResetSubmitBtn" class="btn-destructive">Reset Metrics</button>
+            />
+            <div id="resetModalError" class="admin-modal-error" style="display: none;">
+                Phrase does not match. Enter exactly: RESET BANKROLL AS ADMIN
             </div>
         </div>
+        <div class="admin-modal-footer">
+            <button type="button" id="cancelResetModalBtn" class="admin-outline-btn">[ Cancel ]</button>
+            <button type="button" id="confirmResetSubmitBtn" class="btn-destructive">[ Reset ]</button>
+        </div>
     </div>
+</div>
 
-    <script src="/admin.js?v=15"></script>
+<script src="/admin.js?v=16"></script>
 </body>
 </html>
-
