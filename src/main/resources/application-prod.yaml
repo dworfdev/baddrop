@@ -53,6 +53,14 @@ slots:
     allow-bankroll-reset: false
   cookie:
     secure: ${COOKIE_SECURE:true}
+    # Telegram Web (iframe) needs None; native Telegram clients work with Strict/Lax. None requires secure=true.
+    same-site: ${COOKIE_SAME_SITE:Strict}
+  telegram:
+    # Bot token from @BotFather. Empty = player login is DISABLED (fail-closed). Keep it in .env only.
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    max-auth-age-seconds: ${TELEGRAM_MAX_AUTH_AGE_SECONDS:3600}
+  auth:
+    dev-login-enabled: false
   bankroll:
     initial-prize-pool: ${BANKROLL_INITIAL_PRIZE_POOL:0.0000}
   catalog:

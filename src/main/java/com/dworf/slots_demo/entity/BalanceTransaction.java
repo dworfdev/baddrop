@@ -1,5 +1,6 @@
 package com.dworf.slots_demo.entity;
 
+import com.dworf.slots_demo.security.DepositMemo;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -62,6 +63,10 @@ public class BalanceTransaction {
     @Column(name = "external_tx_hash", unique = true, length = 128)
     private String externalTxHash;
 
+    /** C8: unique code the player puts into the transfer comment, so each payment can be matched to its deposit. */
+    @Column(name = "deposit_memo", unique = true, length = 16)
+    private String depositMemo;
+
     @Column(name = "decided_by", length = 64)
     private String decidedBy;
 
@@ -91,6 +96,9 @@ public class BalanceTransaction {
         this.createdAt = Instant.now();
         this.expiresAt = expiresAt;
         this.walletAddress = walletAddress;
+        if (type == TransactionType.DEPOSIT) {
+            this.depositMemo = DepositMemo.generate();
+        }
     }
 
     private static String generateSecureTxHash() {
@@ -169,6 +177,10 @@ public class BalanceTransaction {
 
     public void setExternalTxHash(String externalTxHash) {
         this.externalTxHash = externalTxHash;
+    }
+
+    public String getDepositMemo() {
+        return depositMemo;
     }
 
     public String getDecidedBy() {

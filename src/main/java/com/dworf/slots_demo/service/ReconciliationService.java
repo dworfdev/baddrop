@@ -6,6 +6,7 @@ import com.dworf.slots_demo.entity.TransactionStatus;
 import com.dworf.slots_demo.entity.TransactionType;
 import com.dworf.slots_demo.repository.BalanceTransactionRepository;
 import com.dworf.slots_demo.repository.CaseRepository;
+import com.dworf.slots_demo.repository.OwnerDrawRepository;
 import com.dworf.slots_demo.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -18,7 +19,10 @@ import java.util.Map;
 /**
  * H15: the books must balance.
  *   sum(balances) + value(owned cases at price) + sum(PENDING withdrawals) + prizePool + houseProfit - seed
- *       == sum(APPROVED deposits) - sum(APPROVED withdrawals)
+ *       == sum(APPROVED deposits) - sum(APPROVED withdrawals) - sum(owner draws)
+ * Owner draws are house profit the owner has already taken out (monthly settlement).
+ * expectedWalletBalance is what the TON wallet should hold if every approval matched a real payment:
+ * deposits - paid withdrawals - owner draws + seed (the seed is assumed to have been funded into the wallet).
  * Pending withdrawals are already deducted from balances, so they are an obligation that is still ours to pay.
  * Owned (unopened) cases were paid for from the balance and have not hit the bankroll yet.
  * Scans all users' inventories: fine at current scale; replace with a SQL aggregate when it grows.
@@ -29,22 +33,26 @@ public class ReconciliationService {
     public record Report(BigDecimal balances, BigDecimal inventoryValue, BigDecimal pendingWithdrawals,
                          BigDecimal prizePool, BigDecimal houseProfit, BigDecimal seed,
                          BigDecimal approvedDeposits, BigDecimal approvedWithdrawals,
-                         BigDecimal difference, boolean balanced) {}
+                         BigDecimal difference, boolean balanced,
+                         BigDecimal ownerDraws, BigDecimal expectedWalletBalance) {}
 
     private final UserRepository userRepository;
     private final BalanceTransactionRepository transactionRepository;
     private final CaseRepository caseRepository;
     private final CaseOpeningService caseOpeningService;
+    private final OwnerDrawRepository ownerDraws;
     private final BigDecimal seed;
 
     public ReconciliationService(UserRepository userRepository, BalanceTransactionRepository transactionRepository,
                                  CaseRepository caseRepository, CaseOpeningService caseOpeningService,
+                                 OwnerDrawRepository ownerDraws,
                                  // same property and default as CaseOpeningService, so the seed always matches what the bankroll row started with
                                  @Value("${slots.bankroll.initial-prize-pool:50.0000}") BigDecimal seed) {
         this.userRepository = userRepository;
         this.transactionRepository = transactionRepository;
         this.caseRepository = caseRepository;
         this.caseOpeningService = caseOpeningService;
+        this.ownerDraws = ownerDraws;
         this.seed = seed;
     }
 
@@ -64,9 +72,11 @@ public class ReconciliationService {
         BigDecimal appW = transactionRepository.sumAmount(TransactionType.WITHDRAW, TransactionStatus.APPROVED);
         BankrollResponse b = caseOpeningService.getBankroll();
         BigDecimal left = balances.add(inventory).add(pendingW).add(b.profitPool()).add(b.houseProfit()).subtract(seed);
-        BigDecimal right = appD.subtract(appW);
+        BigDecimal draws = ownerDraws.sumAmount();
+        BigDecimal right = appD.subtract(appW).subtract(draws);
         BigDecimal diff = left.subtract(right);
+        BigDecimal expectedWallet = right.add(seed);
         return new Report(balances, inventory, pendingW, b.profitPool(), b.houseProfit(), seed, appD, appW,
-                diff, diff.compareTo(BigDecimal.ZERO) == 0);
+                diff, diff.compareTo(BigDecimal.ZERO) == 0, draws, expectedWallet);
     }
 }

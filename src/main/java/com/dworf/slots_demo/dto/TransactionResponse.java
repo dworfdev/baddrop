@@ -15,7 +15,9 @@ public record TransactionResponse(
         TransactionStatus status,
         Instant createdAt,
         Instant expiresAt,
-        String walletAddress
+        String walletAddress,
+        String memo,
+        String receipt
 ) {
     public static TransactionResponse fromEntity(BalanceTransaction tx) {
         return new TransactionResponse(
@@ -26,7 +28,9 @@ public record TransactionResponse(
                 tx.getStatus(),
                 tx.getCreatedAt(),
                 tx.getExpiresAt(),
-                tx.getWalletAddress()
+                tx.getWalletAddress(),
+                tx.getDepositMemo(),
+                tx.getExternalTxHash()
         );
     }
 }

@@ -18,14 +18,27 @@ class SecurityHeadersTest extends IntegrationTestBase {
     void apiResponsesCarryTheBaselineHeaders() {
         ApiClient.Response r = anonymous().get("/api/config");
         assertEquals("nosniff", r.header("X-Content-Type-Options"));
-        assertEquals("DENY", r.header("X-Frame-Options"));
         assertEquals("no-referrer", r.header("Referrer-Policy"));
         String csp = r.header("Content-Security-Policy");
         assertNotNull(csp);
         assertTrue(csp.contains("default-src 'self'"));
+        assertTrue(csp.contains("script-src 'self' https://telegram.org"), "only the Telegram SDK may be loaded from outside");
+        assertTrue(!csp.contains("'unsafe-inline'") || !csp.contains("script-src 'self' 'unsafe-inline'"));
+        assertTrue(!csp.contains("'unsafe-eval'"));
+        assertTrue(csp.contains("frame-ancestors") && csp.contains("telegram.org"), "the Mini App must be embeddable by Telegram");
+        assertTrue(!csp.contains("frame-ancestors *"));
+    }
+
+    @Test
+    void adminSurfaceIsNeverFramableAndLoadsNothingExternal() {
+        ApiClient.Response r = anonymous().get("/api/admin/auth/me"); // 401, but headers still apply
+        assertEquals("DENY", r.header("X-Frame-Options"));
+        String csp = r.header("Content-Security-Policy");
+        assertNotNull(csp);
         assertTrue(csp.contains("frame-ancestors 'none'"));
-        assertTrue(csp.contains("script-src 'self'"), "inline/eval scripts must stay blocked");
-        assertTrue(!csp.contains("script-src 'self' 'unsafe-inline'") && !csp.contains("'unsafe-eval'"));
+        assertTrue(!csp.contains("telegram.org"));
+        ApiClient.Response page = anonymous().get("/admin");
+        assertEquals("DENY", page.header("X-Frame-Options"));
     }
 
     @Test
@@ -54,6 +67,7 @@ class SecurityHeadersTest extends IntegrationTestBase {
         assertTrue(!js.contains("sessionStorage.setItem"), "no secret may be written to sessionStorage");
         assertTrue(!js.contains("password: currentUser.password"));
         assertTrue(!js.contains("/api/users/"), "old credential-carrying routes must be gone from the client");
+        assertTrue(!js.contains("/api/auth/register") && !js.contains("/api/auth/password"), "password flows are gone");
         String admin = anonymous().get("/admin.js").body();
         assertTrue(!admin.contains("X-Admin-Key"));
     }

@@ -1,10 +1,9 @@
 package com.dworf.slots_demo.controller;
 
-import com.dworf.slots_demo.dto.ChangePasswordRequest;
-import com.dworf.slots_demo.dto.LoginRequest;
+import com.dworf.slots_demo.dto.DeleteAccountRequest;
+import com.dworf.slots_demo.dto.DevLoginRequest;
 import com.dworf.slots_demo.dto.MeResponse;
-import com.dworf.slots_demo.dto.PasswordConfirmRequest;
-import com.dworf.slots_demo.dto.RegisterRequest;
+import com.dworf.slots_demo.dto.TelegramLoginRequest;
 import com.dworf.slots_demo.dto.UserResponse;
 import com.dworf.slots_demo.entity.AuthSession;
 import com.dworf.slots_demo.security.AuthInterceptor;
@@ -39,16 +38,23 @@ public class AuthController {
         this.cookies = cookies;
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<MeResponse> register(@RequestBody RegisterRequest body, HttpServletRequest req) {
-        if (body == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Body required");
-        return respond(HttpStatus.CREATED, accounts.register(body.username(), body.password(), req.getRemoteAddr()));
+    /** The only player login: the Mini App posts Telegram.WebApp.initData, the server checks Telegram's signature. */
+    @PostMapping("/telegram")
+    public ResponseEntity<MeResponse> telegram(@RequestBody TelegramLoginRequest body, HttpServletRequest req) {
+        if (body == null || body.initData() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Telegram sign-in failed. Reopen the app from Telegram");
+        }
+        return respond(HttpStatus.OK, accounts.loginWithTelegram(body.initData(), req.getRemoteAddr()));
     }
 
-    @PostMapping("/login")
-    public ResponseEntity<MeResponse> login(@RequestBody LoginRequest body, HttpServletRequest req) {
-        if (body == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password");
-        return respond(HttpStatus.OK, accounts.login(body.username(), body.password(), req.getRemoteAddr()));
+    /** 404 unless slots.auth.dev-login-enabled=true (local testing only). */
+    @PostMapping("/dev-login")
+    public ResponseEntity<MeResponse> devLogin(@RequestBody DevLoginRequest body, HttpServletRequest req) {
+        if (!accounts.isDevLoginEnabled()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Not found");
+        }
+        if (body == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Body required");
+        return respond(HttpStatus.OK, accounts.devLogin(body.username(), req.getRemoteAddr()));
     }
 
     @PostMapping("/logout")
@@ -63,16 +69,10 @@ public class AuthController {
         return new MeResponse(accounts.me(s.getUserId()), s.getCsrfToken());
     }
 
-    @PostMapping("/password")
-    public ResponseEntity<MeResponse> changePassword(@RequestBody ChangePasswordRequest body, HttpServletRequest req) {
-        AuthSession s = AuthInterceptor.session(req);
-        return respond(HttpStatus.OK, accounts.changePassword(s.getUserId(), body.currentPassword(), body.newPassword()));
-    }
-
     @PostMapping("/delete")
-    public ResponseEntity<Map<String, String>> delete(@RequestBody PasswordConfirmRequest body, HttpServletRequest req) {
+    public ResponseEntity<Map<String, String>> delete(@RequestBody DeleteAccountRequest body, HttpServletRequest req) {
         AuthSession s = AuthInterceptor.session(req);
-        accounts.deleteAccount(s.getUserId(), body.password());
+        accounts.deleteAccount(s.getUserId(), body == null ? null : body.confirm());
         return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookies.clear()).body(Map.of("status", "DELETED"));
     }
 

@@ -18,7 +18,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * C3: the plaintext "password" column is gone; only a BCrypt hash is stored.
+ * H22: players have no password at all. Identity is the Telegram account id (verified from the signed Mini App
+ * initData), so there is nothing to guess, leak or reset.
  * C5: optimistic @Version as a second line of defence behind the pessimistic locks.
  * C7: soft delete (deletedAt) so financial history is never destroyed.
  */
@@ -33,9 +34,9 @@ public class User {
     @Column(nullable = false, unique = true, length = 32)
     private String username;
 
-    /** Nullable in the schema only so the legacy-migration can run; code never accepts a null hash. */
-    @Column(name = "password_hash", length = 100)
-    private String passwordHash;
+    /** Telegram user id. Never changes, unique per account. Dev-login accounts get a synthetic negative id. */
+    @Column(name = "telegram_id", nullable = false, unique = true)
+    private Long telegramId;
 
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal balance = BigDecimal.ZERO;
@@ -57,15 +58,14 @@ public class User {
     public User() {
     }
 
-    public User(String username, String passwordHash) {
+    public User(String username, long telegramId) {
         this.username = username;
-        this.passwordHash = passwordHash;
+        this.telegramId = telegramId;
     }
 
     public Long getId() { return id; }
     public String getUsername() { return username; }
-    public String getPasswordHash() { return passwordHash; }
-    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    public Long getTelegramId() { return telegramId; }
     public BigDecimal getBalance() { return balance; }
     public void setBalance(BigDecimal balance) { this.balance = balance; }
     public List<String> getItems() { return items; }
@@ -73,5 +73,7 @@ public class User {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getDeletedAt() { return deletedAt; }
     public void markDeleted(Instant at) { this.deletedAt = at; }
+    /** A deleted account whose owner logs in again comes back empty (deletion required a zero balance and no items). */
+    public void reactivate() { this.deletedAt = null; }
     public boolean isDeleted() { return deletedAt != null; }
 }

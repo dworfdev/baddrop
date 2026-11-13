@@ -49,7 +49,7 @@ class ReconciliationInvariantTest extends IntegrationTestBase {
         assertUnchanged(base, "an approved deposit");
 
         String tx = (String) p.post("/api/me/deposit/start", map("amount", new BigDecimal("8.00")), idem()).json().get("txHash");
-        p.post("/api/me/deposit/confirm", map("txHash", tx));
+        p.post("/api/me/deposit/confirm", map("txHash", tx, "receipt", freshReceipt()));
         assertUnchanged(base, "a pending deposit");
         admin().post("/api/admin/transactions/" + tx + "/reject", map());
         assertUnchanged(base, "a rejected deposit");

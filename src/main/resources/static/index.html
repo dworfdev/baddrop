@@ -10,7 +10,14 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css?v=37" />
+    <link rel="stylesheet" href="/styles.css?v=38" />
+    <style>
+        #walletStep2 .highlight-pill,
+        #walletStep2 .highlight-pill strong { color: #fff !important; }
+        .support-contact { margin: 18px 0 8px; text-align: center; font-size: 12px; opacity: .8; }
+        .support-contact a { color: inherit; font-weight: 600; text-decoration: underline; }
+        button:disabled.locked-btn { opacity: .45; cursor: not-allowed; }
+    </style>
 </head>
 
 <body>
@@ -22,19 +29,16 @@
             <h1 class="welcome-title">Welcome to BADDROP!</h1>
 
             <div class="auth-form">
-                <div class="auth-field">
-                    <label for="authUsername">username</label>
-                    <input id="authUsername" type="text" placeholder="enter username" autocomplete="off" />
+                <p id="authStatus" class="payment-instruction-text">Signing in with Telegram...</p>
+                <div id="devLoginBox" class="auth-field" hidden>
+                    <label for="devUsername">dev login (test only)</label>
+                    <input id="devUsername" type="text" placeholder="username" autocomplete="off" />
+                    <div class="auth-actions">
+                        <button id="devLoginBtn" type="button" class="pill-btn-primary auth-equal-btn">Dev login</button>
+                    </div>
                 </div>
-
-                <div class="auth-field">
-                    <label for="authPassword">password</label>
-                    <input id="authPassword" type="password" placeholder="enter password" autocomplete="off" />
-                </div>
-
                 <div class="auth-actions">
-                    <button id="createBtn" type="button" class="pill-btn-primary auth-equal-btn">create</button>
-                    <button id="loginBtn" type="button" class="text-btn-secondary auth-equal-btn">Login</button>
+                    <button id="retryLoginBtn" type="button" class="text-btn-secondary auth-equal-btn" hidden>Retry</button>
                 </div>
             </div>
         </div>
@@ -164,18 +168,10 @@
                         <div class="profile-info-line">
                             Username - <span id="profileUsername" class="mono-bold"></span>
                         </div>
-                        <div class="profile-info-line password-row">
-                            <span>Password - <span id="profilePassword" class="mono-bold"></span></span>
-                            <button id="togglePasswordVisBtn" type="button" class="password-toggle-btn"
-                                title="Show or hide password">Show</button>
-                        </div>
-                    </div>
+</div>
 
                     <!-- Profile Action Buttons -->
                     <div class="profile-actions-stack">
-                        <button id="changePasswordBtn" type="button" class="profile-action-btn">
-                            change password
-                        </button>
                         <button id="logoutBtn" type="button" class="profile-action-btn">
                             log out
                         </button>
@@ -184,16 +180,9 @@
                         </button>
                     </div>
 
-                    <!-- Promo Section at Bottom of Profile Page -->
-                    <div class="promo-section">
-                        <label for="promoInput" class="promo-label">Promo</label>
-                        <div class="promo-row">
-                            <input id="promoInput" type="text" class="promo-input" placeholder="Enter promo code..."
-                                autocomplete="off" />
-                            <button id="promoSubmitBtn" type="button" class="profile-action-btn">Activate</button>
-                        </div>
-                        <div id="promoFeedback" class="promo-feedback"></div>
-                    </div>
+                    <p id="supportContact" class="support-contact" hidden>
+                        Support contact: <a id="supportLink" href="#" target="_blank" rel="noopener noreferrer"></a>
+                    </p>
                 </section>
             </main>
 
@@ -254,28 +243,41 @@
                         </div>
                     </div>
 
+                    <div class="modal-field">
+                        <label>Payment comment / memo (required, click to copy)</label>
+                        <div class="copiable-address-box" id="copyMemoBox" title="Click to copy memo">
+                            <span id="depositMemoText" class="address-code"></span>
+                            <button id="copyDepositMemoBtn" type="button" class="copy-chip-btn">Copy</button>
+                        </div>
+                    </div>
+
                     <div class="deposit-timer-box">
                         <span class="timer-label">Time remaining:</span>
                         <span id="depositTimerDisplay" class="timer-countdown">15:00</span>
                     </div>
 
                     <div class="admin-payment-note">
-                        <div class="admin-contact-line">
-                            Admin username: <span id="depositAdminUsernameText" class="mono-bold"></span>
-                        </div>
                         <p class="payment-instruction-text">
-                            You must send your screenshot of your payment and our in-game username to one of our admins
+                            Send the exact amount to the address above and put the memo in the transfer comment.
+                            After the transfer, paste the transaction hash (or an explorer link) below and press Sent.
                         </p>
+                        <div class="modal-field">
+                            <label for="depositReceiptInput">Transaction hash or explorer link <span
+                                    class="required-star">*</span></label>
+                            <input id="depositReceiptInput" type="text" placeholder="64-hex hash or tonviewer link"
+                                autocomplete="off" />
+                        </div>
                         <div class="payment-attention-box">
                             <span class="attention-title">ATTENTION!</span>
-                            <span>If you will not send screenshot with your in-game user &mdash; transaction will be
-                                declined. The specified amount does not include network or processing fees; all
-                                transaction fees must be paid entirely by the user.</span>
+                            <span>A deposit without the correct memo or with a wrong amount will be declined. The
+                                specified amount does not include network or processing fees; all transaction fees
+                                must be paid entirely by the user.</span>
                         </div>
                     </div>
 
                     <div class="modal-actions single">
                         <button id="depositSentBtn" type="button" class="pill-btn-primary">Sent</button>
+                        <button id="cancelDepositBtn" type="button" class="text-btn-secondary">Cancel deposit</button>
                     </div>
                 </div>
 
@@ -334,26 +336,16 @@
         </div>
     </div>
 
-    <!-- =================================================================== -->
-    <!-- MODAL 2: CHANGE PASSWORD                                            -->
-    <!-- =================================================================== -->
-    <div id="passwordModal" class="modal-backdrop">
+    <!-- GENERIC CONFIRMATION (amount check, deposit cancel) -->
+    <div id="confirmModal" class="modal-backdrop" style="z-index:1200">
         <div class="modal-card">
             <div class="modal-header">
-                <h3>Change Password</h3>
-                <button id="closePasswordModalBtn" type="button" class="modal-close">&times;</button>
+                <h3 id="confirmModalTitle">Confirm</h3>
             </div>
-            <div class="modal-field">
-                <label for="currentPasswordInput">Current Password</label>
-                <input id="currentPasswordInput" type="password" placeholder="Enter current password"
-                    autocomplete="off" />
-            </div>
-            <div class="modal-field">
-                <label for="newPasswordInput">New Password</label>
-                <input id="newPasswordInput" type="password" placeholder="Enter new password" autocomplete="off" />
-            </div>
-            <div class="modal-actions single">
-                <button id="confirmPasswordBtn" type="button" class="pill-btn-primary">Save New Password</button>
+            <p id="confirmModalText" class="modal-confirm-text"></p>
+            <div class="modal-actions">
+                <button id="confirmModalNo" type="button" class="text-btn-secondary auth-equal-btn">No</button>
+                <button id="confirmModalYes" type="button" class="pill-btn-primary auth-equal-btn">Yes</button>
             </div>
         </div>
     </div>
@@ -486,7 +478,8 @@
     </div>
 
     <div id="toastContainer" class="toast-container"></div>
-    <script src="/app.js?v=37"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="/app.js?v=39"></script>
 </body>
 
 </html>

@@ -71,9 +71,14 @@ public class PlayerController {
         return wallet.activeDeposit(uid(req));
     }
 
+    @PostMapping("/deposit/cancel")
+    public DepositSessionResponse cancelDeposit(HttpServletRequest req) {
+        return wallet.cancelDeposit(uid(req));
+    }
+
     @PostMapping("/deposit/confirm")
     public UserResponse confirmDeposit(@RequestBody ConfirmDepositRequest body, HttpServletRequest req) {
-        return wallet.confirmDeposit(uid(req), body.txHash());
+        return wallet.confirmDeposit(uid(req), body.txHash(), body.receipt());
     }
 
     @PostMapping("/withdraw")

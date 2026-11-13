@@ -6,6 +6,7 @@ import com.dworf.slots_demo.dto.LiveFeedEventResponse;
 import com.dworf.slots_demo.service.CaseOpenerEngine;
 import com.dworf.slots_demo.service.PlayService;
 import com.dworf.slots_demo.service.WalletService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,10 +19,13 @@ import java.util.Map;
 public class PublicController {
     private final PlayService play;
     private final WalletService wallet;
+    private final boolean devLoginEnabled;
 
-    public PublicController(PlayService play, WalletService wallet) {
+    public PublicController(PlayService play, WalletService wallet,
+                            @Value("${slots.auth.dev-login-enabled:false}") boolean devLoginEnabled) {
         this.play = play;
         this.wallet = wallet;
+        this.devLoginEnabled = devLoginEnabled;
     }
 
     @GetMapping("/api")
@@ -38,6 +42,7 @@ public class PublicController {
         m.put("depositAdminUsername", wallet.getDepositAdminUsername());
         m.put("minDepositAmount", WalletService.MIN_DEPOSIT_AMOUNT);
         m.put("minWithdrawAmount", WalletService.MIN_WITHDRAW_AMOUNT);
+        m.put("devLoginEnabled", devLoginEnabled);
         return m;
     }
 

@@ -19,6 +19,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByUsernameAndDeletedAtIsNull(String username);
 
+    /** Includes soft-deleted rows so a returning owner reactivates the same row instead of hitting the unique key. */
+    Optional<User> findByTelegramId(Long telegramId);
+
+    Optional<User> findByTelegramIdAndDeletedAtIsNull(Long telegramId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT u FROM User u WHERE u.id = :id AND u.deletedAt IS NULL")
     Optional<User> findActiveByIdForUpdate(@Param("id") Long id);

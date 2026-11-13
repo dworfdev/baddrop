@@ -8,135 +8,104 @@
     <link rel="stylesheet" href="/admin.css?v=16" />
 </head>
 <body>
-<div class="admin-frame">
-    <!-- TOP BAR -->
-    <header class="admin-topbar">
-        <div class="admin-title-cluster">
-            <span class="admin-badge-dot"></span>
-            <span>BADDROP ADMIN CONSOLE</span>
-        </div>
-        <button id="exitAdminBtn" type="button" class="exit-btn">[ Exit ]</button>
-    </header>
+    <div class="admin-frame">
+        <!-- TOP BAR -->
+        <header class="admin-topbar">
+            <div class="admin-title-cluster">
+                <span class="admin-badge-dot"></span>
+                <span>BADDROP ADMIN CONSOLE</span>
+            </div>
+            <button id="exitAdminBtn" type="button" class="exit-btn">[ Exit ]</button>
+        </header>
 
-    <main class="admin-stage">
-        <!-- SEARCH -->
-        <section class="search-section">
-            <div class="search-bar-row">
-                <span class="prompt-mark">&gt;</span>
-                <input
+        <main class="admin-stage">
+            <!-- SEARCH -->
+            <section class="search-section">
+                <div class="search-bar-row">
+                    <span class="prompt-mark">&gt;</span>
+                    <input
                         id="userSearchInput"
                         type="text"
                         class="admin-search-input"
                         placeholder="find user by username..."
                         autocomplete="off"
                         spellcheck="false"
-                />
-                <button id="findUserBtn" type="button" class="admin-action-btn">[ Find user ]</button>
-            </div>
-        </section>
-
-        <!-- VIEW 1 (DEFAULT): PENDING TRANSACTIONS -->
-        <section id="defaultPendingView" class="admin-view active">
-            <div class="bankroll-metrics" id="bankrollMetrics">
-                <div class="metric-card metric-profit">
-                    <span class="metric-label">PROFIT POOL</span>
-                    <span class="metric-value" id="metricProfitPool">$0.00</span>
+                    />
+                    <button id="findUserBtn" type="button" class="admin-action-btn">[ Find user ]</button>
                 </div>
-                <div class="metric-card metric-house">
-                    <span class="metric-label">HOUSE PROFIT</span>
-                    <span class="metric-value" id="metricHouseProfit">$0.00</span>
-                </div>
-                <div class="bankroll-actions">
-                    <button id="resetBankrollBtn" type="button" class="btn-destructive">[ Reset bankroll metrics ]</button>
-                </div>
-            </div>
+            </section>
 
-            <div class="view-header-row">
-                <h1 class="section-heading">PENDING TRANSACTIONS</h1>
-                <button id="refreshPendingBtn" type="button" class="admin-outline-btn">[ Refresh ]</button>
-            </div>
-
-            <div id="allPendingList" class="transactions-list">
-                <!-- Populated dynamically -->
-            </div>
-        </section>
-
-        <!-- VIEW 2: SPECIFIC USER -->
-        <section id="userDetailView" class="admin-view">
-            <div class="back-row">
-                <button id="backToDefaultBtn" type="button" class="admin-outline-btn">[ &lt; Back to pending ]</button>
-            </div>
-
-            <h1 class="section-heading">USER PROFILE</h1>
-
-            <div class="profile-info-list">
-                <div class="profile-info-line">
-                    username <span class="dim">:</span> <span id="adminDetailUsername" class="mono-bold"></span>
-                </div>
-                <div class="profile-info-line">
-                    balance&nbsp; <span class="dim">:</span> $<span id="adminDetailBalance" class="mono-bold">0.00</span>
-                </div>
-            </div>
-
-            <div class="admin-subsection">
-                <h2 class="subsection-heading">PENDING TRANSACTIONS</h2>
-                <div id="userPendingList" class="transactions-list">
-                    <!-- Populated dynamically -->
-                </div>
-            </div>
-
-            <div class="admin-subsection">
-                <div class="stats-header-row">
-                    <h2 class="subsection-heading">TRANSACTION HISTORY</h2>
-                    <div class="stats-legend">
-                        <span class="legend-item"><span class="legend-dot deposit"></span> deposit (+)</span>
-                        <span class="legend-item"><span class="legend-dot withdraw"></span> withdraw (&minus;)</span>
+            <!-- VIEW 1 (DEFAULT): PENDING TRANSACTIONS -->
+            <section id="defaultPendingView" class="admin-view active">
+                <div class="bankroll-metrics" id="bankrollMetrics">
+                    <div class="metric-card metric-profit">
+                        <span class="metric-label">PROFIT POOL</span>
+                        <span class="metric-value" id="metricProfitPool">$0.00</span>
+                    </div>
+                    <div class="metric-card metric-house">
+                        <span class="metric-label">HOUSE PROFIT</span>
+                        <span class="metric-value" id="metricHouseProfit">$0.00</span>
+                    </div>
+                    <div class="bankroll-actions">
+                        <button id="settleBtn" type="button" class="admin-action-btn">[ Settle house profit ]</button>
+                        <button id="reconBtn" type="button" class="admin-outline-btn">[ Reconciliation ]</button>
                     </div>
                 </div>
-                <div id="userStatsSummaryRow" class="stats-summary-row"></div>
-                <div id="userStatsTimeline" class="stats-timeline-card">
+
+                <div class="view-header-row">
+                    <h1 class="section-heading">PENDING TRANSACTIONS</h1>
+                    <button id="refreshPendingBtn" type="button" class="admin-outline-btn">[ Refresh ]</button>
+                </div>
+
+                <div id="allPendingList" class="transactions-list">
                     <!-- Populated dynamically -->
                 </div>
-            </div>
-        </section>
-    </main>
-</div>
+            </section>
 
-<div id="toastContainer" class="toast-container"></div>
+            <!-- VIEW 2: SPECIFIC USER -->
+            <section id="userDetailView" class="admin-view">
+                <div class="back-row">
+                    <button id="backToDefaultBtn" type="button" class="admin-outline-btn">[ &lt; Back to pending ]</button>
+                </div>
 
-<!-- BANKROLL RESET CONFIRMATION -->
-<div id="bankrollResetModal" class="admin-modal-backdrop" style="display: none;">
-    <div class="admin-modal-card">
-        <div class="admin-modal-header">
-            <h3 class="admin-modal-title">RESET BANKROLL METRICS</h3>
-            <button type="button" id="closeResetModalBtn" class="admin-modal-close" aria-label="Close">[x]</button>
-        </div>
-        <div class="admin-modal-body">
-            <p class="admin-modal-desc">
-                Resets both <strong>Profit Pool</strong> and <strong>House Profit</strong> to <strong>$0.00</strong>. This cannot be undone.
-            </p>
-            <label for="resetConfirmInput" class="admin-modal-label">
-                Type <code class="phrase-code">RESET BANKROLL AS ADMIN</code> to confirm:
-            </label>
-            <input
-                    type="text"
-                    id="resetConfirmInput"
-                    class="admin-modal-input"
-                    placeholder="RESET BANKROLL AS ADMIN"
-                    autocomplete="off"
-                    spellcheck="false"
-            />
-            <div id="resetModalError" class="admin-modal-error" style="display: none;">
-                Phrase does not match. Enter exactly: RESET BANKROLL AS ADMIN
-            </div>
-        </div>
-        <div class="admin-modal-footer">
-            <button type="button" id="cancelResetModalBtn" class="admin-outline-btn">[ Cancel ]</button>
-            <button type="button" id="confirmResetSubmitBtn" class="btn-destructive">[ Reset ]</button>
-        </div>
+                <h1 class="section-heading">USER PROFILE</h1>
+
+                <div class="profile-info-list">
+                    <div class="profile-info-line">
+                        username <span class="dim">:</span> <span id="adminDetailUsername" class="mono-bold"></span>
+                    </div>
+                    <div class="profile-info-line">
+                        balance&nbsp; <span class="dim">:</span> $<span id="adminDetailBalance" class="mono-bold">0.00</span>
+                    </div>
+                </div>
+
+                <div class="admin-subsection">
+                    <h2 class="subsection-heading">PENDING TRANSACTIONS</h2>
+                    <div id="userPendingList" class="transactions-list">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <div class="admin-subsection">
+                    <div class="stats-header-row">
+                        <h2 class="subsection-heading">TRANSACTION HISTORY</h2>
+                        <div class="stats-legend">
+                            <span class="legend-item"><span class="legend-dot deposit"></span> deposit (+)</span>
+                            <span class="legend-item"><span class="legend-dot withdraw"></span> withdraw (&minus;)</span>
+                        </div>
+                    </div>
+                    <div id="userStatsSummaryRow" class="stats-summary-row"></div>
+                    <div id="userStatsTimeline" class="stats-timeline-card">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </section>
+        </main>
     </div>
-</div>
 
-<script src="/admin.js?v=16"></script>
+    <div id="toastContainer" class="toast-container"></div>
+    <pre id="reconPanel" class="stats-timeline-card" style="display:none; white-space:pre-wrap; margin:12px;"></pre>
+
+    <script src="/admin.js?v=17"></script>
 </body>
 </html>

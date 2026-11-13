@@ -12,6 +12,10 @@ import com.dworf.slots_demo.security.AuthInterceptor;
 import com.dworf.slots_demo.security.SessionCookies;
 import com.dworf.slots_demo.service.AdminAuthService;
 import com.dworf.slots_demo.service.AuditService;
+import com.dworf.slots_demo.dto.SettleRequest;
+import com.dworf.slots_demo.entity.OwnerDraw;
+import com.dworf.slots_demo.repository.OwnerDrawRepository;
+import com.dworf.slots_demo.service.SettlementService;
 import com.dworf.slots_demo.service.CaseOpeningService;
 import com.dworf.slots_demo.service.ReconciliationService;
 import com.dworf.slots_demo.service.SessionService;
@@ -47,11 +51,14 @@ public class AdminController {
     private final ReconciliationService reconciliation;
     private final AuditService audit;
     private final AuditLogRepository auditLog;
+    private final SettlementService settlement;
+    private final OwnerDrawRepository ownerDraws;
     private final boolean allowBankrollReset;
 
     public AdminController(AdminAuthService adminAuth, SessionService sessions, SessionCookies cookies,
                            TransactionReviewService review, CaseOpeningService caseOpeningService,
                            ReconciliationService reconciliation, AuditService audit, AuditLogRepository auditLog,
+                           SettlementService settlement, OwnerDrawRepository ownerDraws,
                            @Value("${slots.admin.allow-bankroll-reset:false}") boolean allowBankrollReset) {
         this.adminAuth = adminAuth;
         this.sessions = sessions;
@@ -61,6 +68,8 @@ public class AdminController {
         this.reconciliation = reconciliation;
         this.audit = audit;
         this.auditLog = auditLog;
+        this.settlement = settlement;
+        this.ownerDraws = ownerDraws;
         this.allowBankrollReset = allowBankrollReset;
     }
 
@@ -121,6 +130,18 @@ public class AdminController {
     @GetMapping("/api/admin/reconciliation")
     public ReconciliationService.Report reconcile() {
         return reconciliation.report();
+    }
+
+    /** Monthly close: records house profit the owner has taken out of the wallet. Never touches the prize pool. */
+    @PostMapping("/api/admin/bankroll/settle")
+    public SettlementService.Settled settle(@RequestBody SettleRequest body, HttpServletRequest req) {
+        if (body == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Body required");
+        return settlement.settleHouseProfit(body.amount(), body.note(), actor(req), req.getRemoteAddr());
+    }
+
+    @GetMapping("/api/admin/owner-draws")
+    public List<OwnerDraw> draws() {
+        return ownerDraws.findTop50ByOrderByIdDesc();
     }
 
     @GetMapping("/api/admin/users/{username}")

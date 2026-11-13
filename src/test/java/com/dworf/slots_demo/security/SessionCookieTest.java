@@ -27,7 +27,7 @@ class SessionCookieTest extends IntegrationTestBase {
     void loginCookieIsHttpOnlySecureSameSiteStrict() {
         String name = uniqueUsername();
         registerPlayer(name);
-        ApiClient.Response r = anonymous().post("/api/auth/login", map("username", name, "password", PLAYER_PASSWORD));
+        ApiClient.Response r = anonymous().post("/api/auth/telegram", map("initData", initData(telegramIdOf(name), name)));
         String c = setCookie(r);
         assertNotNull(c, "login must set BD_SESSION");
         String lower = c.toLowerCase();
@@ -49,11 +49,10 @@ class SessionCookieTest extends IntegrationTestBase {
     }
 
     @Test
-    void cookieValueIsNotThePasswordNorTheUsername() {
+    void cookieValueIsNotTheUsername() {
         String name = uniqueUsername();
         registerPlayer(name);
-        ApiClient c = loginPlayer(name, PLAYER_PASSWORD);
-        assertFalse(c.sessionCookie().contains(PLAYER_PASSWORD));
+        ApiClient c = loginPlayer(name);
         assertFalse(c.sessionCookie().contains(name));
     }
 
@@ -82,7 +81,7 @@ class SessionCookieTest extends IntegrationTestBase {
     void aSecondLoginDoesNotInvalidateTheFirstButEachSessionIsIndependent() {
         String name = uniqueUsername();
         ApiClient first = registerPlayer(name);
-        ApiClient second = loginPlayer(name, PLAYER_PASSWORD);
+        ApiClient second = loginPlayer(name);
         assertEquals(200, first.get("/api/me").status());
         assertEquals(200, second.get("/api/me").status());
         second.post("/api/auth/logout", map());

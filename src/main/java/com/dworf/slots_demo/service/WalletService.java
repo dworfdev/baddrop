@@ -6,6 +6,7 @@ import com.dworf.slots_demo.entity.BalanceTransaction;
 import com.dworf.slots_demo.entity.TransactionStatus;
 import com.dworf.slots_demo.entity.TransactionType;
 import com.dworf.slots_demo.entity.User;
+import com.dworf.slots_demo.security.TonTxHash;
 import com.dworf.slots_demo.repository.BalanceTransactionRepository;
 import com.dworf.slots_demo.repository.UserRepository;
 import com.dworf.slots_demo.security.Money;
@@ -93,11 +94,31 @@ public class WalletService {
                 : DepositSessionResponse.fromEntity(active, hasPending, hasApproved, depositAdminUsername);
     }
 
+    /** Player abandons the open payment window (wrong amount etc.). Only AWAITING_PAYMENT rows are touched. */
     @Transactional
-    public UserResponse confirmDeposit(Long userId, String txHash) {
+    public DepositSessionResponse cancelDeposit(Long userId) {
+        User user = lockActive(userId);
+        for (BalanceTransaction tx : transactionRepository
+                .findByUserAndStatusOrderByCreatedAtDesc(user, TransactionStatus.AWAITING_PAYMENT)) {
+            tx.setStatus(TransactionStatus.EXPIRED);
+            transactionRepository.save(tx);
+        }
+        return DepositSessionResponse.inactive(user.getUsername(),
+                transactionRepository.existsByUserAndStatus(user, TransactionStatus.PENDING),
+                hasApprovedDeposit(user), depositAdminUsername);
+    }
+
+    @Transactional
+    public UserResponse confirmDeposit(Long userId, String txHash, String receipt) {
         User user = lockActive(userId);
         if (txHash == null || txHash.isBlank()) {
             throw bad("Transaction hash must be provided");
+        }
+        String chainHash;
+        try {
+            chainHash = TonTxHash.normalize(receipt);
+        } catch (IllegalArgumentException e) {
+            throw bad(e.getMessage());
         }
         if (transactionRepository.existsByUserAndStatus(user, TransactionStatus.PENDING)) {
             throw conflict("You already have a pending transaction awaiting admin review");
@@ -117,6 +138,11 @@ public class WalletService {
             transactionRepository.save(tx);
             throw bad("Deposit 15-minute timer has expired. Please start a new deposit.");
         }
+        if (transactionRepository.existsByExternalTxHash(chainHash)) {
+            throw conflict("This payment was already submitted for another deposit");
+        }
+        // flushed (and checked against the unique index) by the flushAutomatically update below
+        tx.setExternalTxHash(chainHash);
         if (transactionRepository.transitionStatusIfCurrent(
                 tx.getTxHash(), TransactionStatus.AWAITING_PAYMENT, TransactionStatus.PENDING, now) != 1) {
             throw conflict("Deposit session was already confirmed or expired");
@@ -135,6 +161,13 @@ public class WalletService {
         String wallet = rawWallet == null ? "" : rawWallet.trim();
         if (!TonAddressValidator.isMainnet(wallet)) {
             throw bad("Invalid TON wallet address");
+        }
+        Instant now = clock.instant();
+        boolean openDeposit = transactionRepository
+                .findByUserAndStatusOrderByCreatedAtDesc(user, TransactionStatus.AWAITING_PAYMENT).stream()
+                .anyMatch(t -> t.getExpiresAt() == null || !now.isAfter(t.getExpiresAt()));
+        if (openDeposit) {
+            throw conflict("Finish or cancel your active deposit before withdrawing");
         }
         if (!hasApprovedDeposit(user)) {
             throw bad("You must have at least 1 approved deposit on your account before withdrawing");

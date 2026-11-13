@@ -22,14 +22,9 @@
     const metricProfitPool = document.getElementById('metricProfitPool');
     const metricHouseProfit = document.getElementById('metricHouseProfit');
 
-    // Bankroll Reset Modal Elements
-    const resetBankrollBtn = document.getElementById('resetBankrollBtn');
-    const bankrollResetModal = document.getElementById('bankrollResetModal');
-    const closeResetModalBtn = document.getElementById('closeResetModalBtn');
-    const cancelResetModalBtn = document.getElementById('cancelResetModalBtn');
-    const confirmResetSubmitBtn = document.getElementById('confirmResetSubmitBtn');
-    const resetConfirmInput = document.getElementById('resetConfirmInput');
-    const resetModalError = document.getElementById('resetModalError');
+    const settleBtn = document.getElementById('settleBtn');
+    const reconBtn = document.getElementById('reconBtn');
+    const reconPanel = document.getElementById('reconPanel');
 
     function showToast(message, isError = false) {
         const toast = document.createElement('div');
@@ -100,51 +95,52 @@
         } catch (_) {}
     }
 
-    function openResetModal() {
-        if (!bankrollResetModal) return;
-        resetConfirmInput.value = '';
-        resetConfirmInput.classList.remove('input-error');
-        resetModalError.style.display = 'none';
-        bankrollResetModal.style.display = 'flex';
-        setTimeout(() => resetConfirmInput.focus(), 60);
-    }
-
-    function closeResetModal() {
-        if (!bankrollResetModal) return;
-        bankrollResetModal.style.display = 'none';
-        resetConfirmInput.value = '';
-        resetConfirmInput.classList.remove('input-error');
-        resetModalError.style.display = 'none';
-    }
-
-    async function submitBankrollReset() {
-        const phrase = resetConfirmInput.value.trim();
-        if (phrase !== 'RESET BANKROLL AS ADMIN') {
-            resetConfirmInput.classList.add('input-error');
-            resetModalError.style.display = 'block';
-            resetConfirmInput.focus();
-            return;
-        }
-
-        resetConfirmInput.classList.remove('input-error');
-        resetModalError.style.display = 'none';
-        confirmResetSubmitBtn.disabled = true;
-
+    async function settleHouseProfit() {
         try {
-            const result = await callApi('POST', '/api/admin/bankroll/reset', {
-                confirmation: 'RESET BANKROLL AS ADMIN'
+            const b = await callApi('GET', '/api/admin/bankroll');
+            const suggested = Number(b.houseProfit).toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
+            const raw = window.prompt('Amount of house profit you took from the wallet (max ' + formatMoney(b.houseProfit) + ')', suggested);
+            if (raw === null) return;
+            const amount = Number(raw.replace(',', '.'));
+            if (!(amount > 0)) { showToast('Invalid amount', true); return; }
+            const note = window.prompt('Note (e.g. month, tx hash of your withdrawal)', '') || '';
+            const res = await callApi('POST', '/api/admin/bankroll/settle', { amount, note });
+            showToast('Settled ' + formatMoney(res.amount) + ' (draw #' + res.drawId + ')');
+            await loadBankroll();
+            await showReconciliation();
+        } catch (_) {}
+    }
+
+    async function showReconciliation() {
+        try {
+            const r = await callApi('GET', '/api/admin/reconciliation');
+            const draws = await callApi('GET', '/api/admin/owner-draws');
+            const m = v => formatMoney(v);
+            const lines = [
+                'RECONCILIATION  ' + (r.balanced ? '[ BALANCED ]' : '[ MISMATCH ]'),
+                '',
+                'player balances ........ ' + m(r.balances),
+                'inventory value ........ ' + m(r.inventoryValue),
+                'pending withdrawals .... ' + m(r.pendingWithdrawals),
+                'prize pool ............. ' + m(r.prizePool),
+                'house profit ........... ' + m(r.houseProfit),
+                'seed ................... ' + m(r.seed),
+                '',
+                'approved deposits ...... ' + m(r.approvedDeposits),
+                'approved withdrawals ... ' + m(r.approvedWithdrawals),
+                'owner draws ............ ' + m(r.ownerDraws),
+                'difference ............. ' + m(r.difference),
+                '',
+                'EXPECTED WALLET BALANCE  ' + m(r.expectedWalletBalance) + '   (deposits - paid withdrawals - draws + seed)',
+                '',
+                'last owner draws:'
+            ];
+            (draws || []).slice(0, 10).forEach(d => {
+                lines.push('  #' + d.id + '  ' + m(d.amount) + '  ' + (d.createdAt || '') + '  ' + (d.adminName || '') + '  ' + (d.note || ''));
             });
-            const newProfitPool = result.prizePool !== undefined ? result.prizePool : (result.profitPool ?? 0);
-            const newHouseProfit = result.houseProfit !== undefined ? result.houseProfit : 0;
-            metricProfitPool.textContent = formatMoney(newProfitPool);
-            metricHouseProfit.textContent = formatMoney(newHouseProfit);
-            closeResetModal();
-            showToast('Bankroll metrics reset successfully');
-        } catch (err) {
-            resetConfirmInput.classList.add('input-error');
-        } finally {
-            confirmResetSubmitBtn.disabled = false;
-        }
+            reconPanel.textContent = lines.join('\n');
+            reconPanel.style.display = 'block';
+        } catch (_) {}
     }
 
     // Refresh = bankroll metrics + pending transactions list
@@ -192,6 +188,10 @@
                     <div class="tx-meta">
                         Amount: <strong>$${Number(tx.amount).toFixed(2)}</strong> ${timeStr ? `&middot; ${timeStr}` : ''}
                     </div>
+                    ${tx.type === 'DEPOSIT' ? `
+                        <div class="tx-meta">Memo: <strong data-memo></strong></div>
+                        <div class="tx-meta">Receipt: <a data-receipt target="_blank" rel="noopener noreferrer"></a></div>
+                    ` : ''}
                     ${tx.type === 'WITHDRAW' && tx.walletAddress ? `
                         <div class="tx-wallet-box" data-copy-wallet title="Click to copy TON address">
                             <span class="tx-wallet-label">TON Address:</span>
@@ -211,6 +211,15 @@
                 // textContent, never innerHTML: usernames are user-controlled data
                 userLabel.textContent = tx.username;
                 userLabel.title = 'Click to open ' + tx.username;
+            }
+
+            const memoEl = card.querySelector('[data-memo]');
+            if (memoEl) memoEl.textContent = tx.memo || '-';
+            const receiptEl = card.querySelector('[data-receipt]');
+            if (receiptEl) {
+                const rc = tx.receipt || '';
+                receiptEl.textContent = rc || '(none)';
+                if (/^[0-9a-f]{64}$/i.test(rc)) receiptEl.href = 'https://tonviewer.com/transaction/' + rc;
             }
 
             const walletBox = card.querySelector('[data-copy-wallet]');
@@ -250,11 +259,10 @@
                 try {
                     let externalTxHash = null;
                     if (tx.type === 'DEPOSIT') {
-                        externalTxHash = window.prompt('Paste the ON-CHAIN transaction hash you verified for this deposit ($' + Number(tx.amount).toFixed(2) + ')');
-                        if (!externalTxHash || !externalTxHash.trim()) {
-                            showToast('On-chain tx hash is required to approve a deposit', true);
-                            return;
-                        }
+                        const ok = window.confirm('Approve deposit $' + Number(tx.amount).toFixed(2)
+                            + '?\n\nCheck on the explorer that:\n - the amount received is exactly this\n - the transfer comment equals memo ' + (tx.memo || '') + '\n - the receipt matches: ' + (tx.receipt || '(none)'));
+                        if (!ok) return;
+                        externalTxHash = null; // the server uses the player's stored receipt
                     } else {
                         externalTxHash = window.prompt('Payout tx hash (optional)') || null;
                     }
@@ -425,42 +433,8 @@
         window.location.href = '/';
     });
 
-    // 4) Bankroll Reset Modal Event Listeners
-    if (resetBankrollBtn) {
-        resetBankrollBtn.addEventListener('click', openResetModal);
-    }
-    if (closeResetModalBtn) {
-        closeResetModalBtn.addEventListener('click', closeResetModal);
-    }
-    if (cancelResetModalBtn) {
-        cancelResetModalBtn.addEventListener('click', closeResetModal);
-    }
-    if (bankrollResetModal) {
-        bankrollResetModal.addEventListener('click', (e) => {
-            if (e.target === bankrollResetModal) {
-                closeResetModal();
-            }
-        });
-    }
-    if (confirmResetSubmitBtn) {
-        confirmResetSubmitBtn.addEventListener('click', submitBankrollReset);
-    }
-    if (resetConfirmInput) {
-        resetConfirmInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                submitBankrollReset();
-            } else if (e.key === 'Escape') {
-                closeResetModal();
-            }
-        });
-        resetConfirmInput.addEventListener('input', () => {
-            resetConfirmInput.classList.remove('input-error');
-            if (resetModalError) {
-                resetModalError.style.display = 'none';
-            }
-        });
-    }
+    if (settleBtn) settleBtn.addEventListener('click', settleHouseProfit);
+    if (reconBtn) reconBtn.addEventListener('click', showReconciliation);
 
     // Initial load: fetch the CSRF token for this admin session, then bankroll metrics + pending transactions
     (async function init() {

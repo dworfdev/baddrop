@@ -1,0 +1,48 @@
+# ---- BADDROP: new/changed settings (merge into your application.properties; NEVER commit real values) ----
+
+# Admin account (C6). Login is disabled (fail-closed) until ALL THREE are set.
+slots.admin.username=${ADMIN_USERNAME}
+# BCrypt hash, not the password. Generate: htpasswd -bnBC 12 "" 'the-password' | tr -d ':\n' | sed 's/$2y/$2a/'
+slots.admin.password-hash=${ADMIN_PASSWORD_HASH}
+# Base32 TOTP secret (add it to an authenticator app). Generate: any 20 random bytes, base32-encoded.
+slots.admin.totp-secret=${ADMIN_TOTP_SECRET}
+# Keep false: zeroing the bankroll breaks the reconciliation invariant (H15).
+slots.admin.allow-bankroll-reset=false
+
+# Telegram Mini App login (no player passwords anymore). Token from @BotFather; empty = player login disabled.
+slots.telegram.bot-token=${TELEGRAM_BOT_TOKEN}
+slots.telegram.max-auth-age-seconds=3600
+# Telegram Web (iframe) needs None (requires slots.cookie.secure=true); native clients work with Strict
+slots.cookie.same-site=Strict
+# Test profile only. NEVER true in prod.
+slots.auth.dev-login-enabled=false
+
+# Sessions (H9)
+slots.session.player-ttl-hours=12
+slots.session.admin-ttl-minutes=60
+
+# Cookie: Secure is ON by default. Set false ONLY for local plain-http development.
+slots.cookie.secure=true
+
+# Brute-force limits (H10), per 15 min unless noted. In-memory: correct for ONE node only.
+slots.limits.login-per-ip=30
+slots.limits.admin-login-per-ip=5
+
+# Reconciliation (H15) reuses your existing slots.bankroll.initial-prize-pool as the seed. No separate setting.
+
+# Catalogue (H13): true = refuse to start if any case has RTP > 93%. Default only logs a warning.
+slots.catalog.enforce-rtp-cap=false
+
+
+# CSP override if index.html needs other sources (default is strict: scripts only from 'self').
+# slots.csp=default-src 'self'; script-src 'self'; ...
+
+# ---- Recommended Spring settings (H20) ----
+# Behind nginx/Caddy/Cloudflare, so req.getRemoteAddr() (used for rate limiting) is the real client IP:
+server.forward-headers-strategy=native
+server.error.include-message=never
+server.error.include-stacktrace=never
+server.error.include-binding-errors=never
+spring.jpa.open-in-view=false
+# Do not let Hibernate alter a production schema; use the SQL in db/migration-notes.sql (or Flyway/Liquibase).
+# spring.jpa.hibernate.ddl-auto=validate

@@ -28,7 +28,7 @@ public class AuthInterceptor implements HandlerInterceptor {
     private static final Set<String> PUBLIC = Set.of(
             "GET /api", "GET /api/config", "GET /api/cases", "GET /api/cases/math",
             "GET /api/live-feed", "GET /api/leaderboard",
-            "POST /api/auth/register", "POST /api/auth/login", "POST /api/auth/logout",
+            "POST /api/auth/telegram", "POST /api/auth/dev-login", "POST /api/auth/logout",
             "POST /api/admin/auth/login");
 
     private final SessionService sessions;

@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.dworf.slots_demo.support.ApiClient.map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Base for every test that boots the app. Uses real HTTP on a random port.
@@ -28,21 +29,22 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 // Static defaults live here so a subclass can override them with its own @TestPropertySource
 // (brute-force limits and TOTP replay protection are exercised by dedicated test classes with their own context).
 @TestPropertySource(properties = {
-        "slots.bcrypt-strength=4",   // tests register hundreds of users; production default is 12
+        "slots.cookie.secure=true",   // the dev profile turns it off for plain http; SessionCookieTest asserts the production default
+        "slots.bcrypt-strength=4",   // admin password hashing only
+        "slots.auth.dev-login-enabled=false",
         "slots.admin.totp-replay-protection=false",
         "slots.admin.allow-bankroll-reset=false",
         "slots.limits.login-per-ip=100000",
-        "slots.limits.login-per-user-ip=100000",
-        "slots.limits.register-per-ip=100000",
-        "slots.limits.admin-login-per-ip=100000",
-        "slots.limits.password-check-per-user=100000"
+        "slots.limits.admin-login-per-ip=100000"
 })
 public abstract class IntegrationTestBase {
 
     protected static final String ADMIN_USER = "testadmin";
     protected static final String ADMIN_PASSWORD = "Adm1n-Test-Pass!2026";
     protected static final String ADMIN_TOTP_SECRET = Totp.generateSecret();
-    protected static final String PLAYER_PASSWORD = "correct-horse-battery";
+    protected static final String BOT_TOKEN = "123456:TEST-BOT-TOKEN-for-junit";
+    private static final java.util.concurrent.atomic.AtomicLong TG_IDS = new java.util.concurrent.atomic.AtomicLong(7_000_000_000L);
+    private static final java.util.concurrent.ConcurrentHashMap<String, Long> TG_ID_BY_USERNAME = new java.util.concurrent.ConcurrentHashMap<>();
 
     /** A valid mainnet TON address (CRC verified in TonAddressValidatorTest). */
     protected static final String TON_WALLET = "UQCys13azAWTFuERWwjc_5sqKZxQEhJhbtGGaiyp2Sf55Hrg";
@@ -53,6 +55,7 @@ public abstract class IntegrationTestBase {
 
     @DynamicPropertySource
     static void baseProperties(DynamicPropertyRegistry r) {
+        r.add("slots.telegram.bot-token", () -> BOT_TOKEN);
         r.add("slots.admin.username", () -> ADMIN_USER);
         r.add("slots.admin.password-hash", () -> new BCryptPasswordEncoder(4).encode(ADMIN_PASSWORD));
         r.add("slots.admin.totp-secret", () -> ADMIN_TOTP_SECRET);
@@ -77,25 +80,45 @@ public abstract class IntegrationTestBase {
         return Map.of("Idempotency-Key", freshKey());
     }
 
-    /** Registers a new player and returns a client that carries the session cookie and CSRF token. */
+    /** Signed Mini App initData for the given Telegram user (fresh auth_date). */
+    protected static String initData(long telegramId, String username) {
+        return com.dworf.slots_demo.security.TelegramInitData.sign(
+                BOT_TOKEN, telegramId, username, "Test", Instant.now().getEpochSecond());
+    }
+
+    /** Logs a player in through the real Telegram endpoint. The first call for a username allocates a Telegram id. */
     protected ApiClient registerPlayer(String username) {
-        ApiClient c = anonymous();
-        ApiClient.Response r = c.post("/api/auth/register", map("username", username, "password", PLAYER_PASSWORD));
-        assertEquals(201, r.status(), "register failed: " + r.body());
-        c.setCsrf((String) r.json().get("csrfToken"));
-        return c;
+        long tgId = TG_ID_BY_USERNAME.computeIfAbsent(username, u -> TG_IDS.incrementAndGet());
+        return loginTelegram(tgId, username);
     }
 
     protected ApiClient registerPlayer() {
         return registerPlayer(uniqueUsername());
     }
 
-    protected ApiClient loginPlayer(String username, String password) {
+    protected ApiClient loginTelegram(long telegramId, String username) {
         ApiClient c = anonymous();
-        ApiClient.Response r = c.post("/api/auth/login", map("username", username, "password", password));
-        assertEquals(200, r.status(), "login failed: " + r.body());
+        ApiClient.Response r = c.post("/api/auth/telegram", map("initData", initData(telegramId, username)));
+        assertEquals(200, r.status(), "telegram login failed: " + r.body());
         c.setCsrf((String) r.json().get("csrfToken"));
         return c;
+    }
+
+    /** Same Telegram user logging in again (new session). */
+    protected ApiClient loginPlayer(String username) {
+        Long id = TG_ID_BY_USERNAME.get(username);
+        if (id == null) throw new IllegalArgumentException("unknown test player " + username);
+        return loginTelegram(id, username);
+    }
+
+    protected static long telegramIdOf(String username) {
+        Long id = TG_ID_BY_USERNAME.get(username);
+        if (id == null) throw new IllegalArgumentException("unknown test player " + username);
+        return id;
+    }
+
+    protected static String freshReceipt() {
+        return (UUID.randomUUID().toString() + UUID.randomUUID()).replace("-", "").substring(0, 64);
     }
 
     /** Fresh admin login (valid TOTP). */
@@ -123,10 +146,10 @@ public abstract class IntegrationTestBase {
         ApiClient.Response start = player.post("/api/me/deposit/start", map("amount", new BigDecimal(amount)), idem());
         assertEquals(200, start.status(), "deposit start failed: " + start.body());
         String txHash = (String) start.json().get("txHash");
-        ApiClient.Response confirm = player.post("/api/me/deposit/confirm", map("txHash", txHash));
+        assertNotNull(start.json().get("memo"), "deposit must carry a memo");
+        ApiClient.Response confirm = player.post("/api/me/deposit/confirm", map("txHash", txHash, "receipt", freshReceipt()));
         assertEquals(200, confirm.status(), "deposit confirm failed: " + confirm.body());
-        return admin().post("/api/admin/transactions/" + txHash + "/approve",
-                map("externalTxHash", "ext" + UUID.randomUUID().toString().replace("-", "")));
+        return admin().post("/api/admin/transactions/" + txHash + "/approve", map());
     }
 
     protected BigDecimal balanceOf(ApiClient player) {

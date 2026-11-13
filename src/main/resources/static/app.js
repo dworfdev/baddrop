@@ -47,10 +47,11 @@
     const playerScreen = document.getElementById('playerScreen');
 
     // DOM Elements - Auth
-    const authUsername = document.getElementById('authUsername');
-    const authPassword = document.getElementById('authPassword');
-    const createBtn = document.getElementById('createBtn');
-    const loginBtn = document.getElementById('loginBtn');
+    const authStatus = document.getElementById('authStatus');
+    const devLoginBox = document.getElementById('devLoginBox');
+    const devUsername = document.getElementById('devUsername');
+    const devLoginBtn = document.getElementById('devLoginBtn');
+    const retryLoginBtn = document.getElementById('retryLoginBtn');
 
     // DOM Elements - Top Bar
     const topUsername = document.getElementById('topUsername');
@@ -74,17 +75,11 @@
 
     // DOM Elements - Profile View
     const profileUsername = document.getElementById('profileUsername');
-    const profilePassword = document.getElementById('profilePassword');
     const profileDepositBtn = document.getElementById('profileDepositBtn');
     const profileWithdrawBtn = document.getElementById('profileWithdrawBtn');
-    const togglePasswordVisBtn = document.getElementById('togglePasswordVisBtn');
-    const changePasswordBtn = document.getElementById('changePasswordBtn');
 
     const logoutBtn = document.getElementById('logoutBtn');
     const deleteAccountBtn = document.getElementById('deleteAccountBtn');
-    const promoInput = document.getElementById('promoInput');
-    const promoSubmitBtn = document.getElementById('promoSubmitBtn');
-    const promoFeedback = document.getElementById('promoFeedback');
 
     // DOM Elements - Modals
     const balanceModal = document.getElementById('balanceModal');
@@ -103,7 +98,9 @@
     const step2DepositAmountText = document.getElementById('step2DepositAmountText');
     const step2WithdrawAmountText = document.getElementById('step2WithdrawAmountText');
     const depositAddressText = document.getElementById('depositAddressText');
-    const depositAdminUsernameText = document.getElementById('depositAdminUsernameText');
+    const depositMemoText = document.getElementById('depositMemoText');
+    const copyMemoBox = document.getElementById('copyMemoBox');
+    const depositReceiptInput = document.getElementById('depositReceiptInput');
     const copyAddressBox = document.getElementById('copyAddressBox');
     const copyDepositAddressBtn = document.getElementById('copyDepositAddressBtn');
     const depositTimerDisplay = document.getElementById('depositTimerDisplay');
@@ -113,11 +110,6 @@
     const walletDoneExitBtn = document.getElementById('walletDoneExitBtn');
     const walletProgressFill = document.getElementById('walletProgressFill');
 
-    const passwordModal = document.getElementById('passwordModal');
-    const closePasswordModalBtn = document.getElementById('closePasswordModalBtn');
-    const currentPasswordInput = document.getElementById('currentPasswordInput');
-    const newPasswordInput = document.getElementById('newPasswordInput');
-    const confirmPasswordBtn = document.getElementById('confirmPasswordBtn');
 
     const logoutModal = document.getElementById('logoutModal');
     const closeLogoutModalBtn = document.getElementById('closeLogoutModalBtn');
@@ -240,11 +232,6 @@
     function updateProfileUI() {
         topUsername.textContent = currentUser.username;
         profileUsername.textContent = currentUser.username;
-        // The password is never available to the client: show a fixed mask and hide the reveal button.
-        profilePassword.textContent = '\u2022'.repeat(10);
-        if (togglePasswordVisBtn) {
-            togglePasswordVisBtn.style.display = 'none';
-        }
     }
 
     async function syncBalanceFromGet() {
@@ -323,8 +310,22 @@
     async function loadAppConfig() {
         try {
             const config = await callApi('GET', '/api/config', null, false);
-            if (config && config.depositAdminUsername && depositAdminUsernameText) {
-                depositAdminUsernameText.textContent = config.depositAdminUsername;
+            if (config && config.depositAdminUsername) {
+                const supportName = String(config.depositAdminUsername).replace(/^@/, '');
+                const supportLink = document.getElementById('supportLink');
+                const supportBox = document.getElementById('supportContact');
+                if (supportLink && supportBox && /^[A-Za-z0-9_]{3,64}$/.test(supportName)) {
+                    supportLink.textContent = '@' + supportName;
+                    supportLink.href = 'https://t.me/' + supportName;
+                    supportLink.addEventListener('click', (e) => {
+                        const tg = window.Telegram && window.Telegram.WebApp;
+                        if (tg && tg.openTelegramLink) { e.preventDefault(); tg.openTelegramLink(supportLink.href); }
+                    });
+                    supportBox.hidden = false;
+                }
+            }
+            if (config && config.devLoginEnabled && devLoginBox) {
+                devLoginBox.hidden = false;
             }
         } catch (_) {}
     }
@@ -355,27 +356,46 @@
         await checkAndRestoreActiveDeposit(true);
     }
 
-    createBtn.addEventListener('click', async () => {
-        try {
-            const username = authUsername.value.trim();
-            const password = authPassword.value;
-            const created = await callApi('POST', '/api/auth/register', { username, password });
-            authPassword.value = '';
-            showToast(`Account '${created.user.username}' created!`);
-            await enterPlayerPortal(created);
-        } catch (_) {}
-    });
+    function showAuthMessage(text, canRetry) {
+        if (authStatus) authStatus.textContent = text;
+        if (retryLoginBtn) retryLoginBtn.hidden = !canRetry;
+    }
 
-    loginBtn.addEventListener('click', async () => {
+    // Telegram Mini App login: the server verifies the signed initData; no passwords anywhere.
+    async function loginViaTelegram() {
+        const tg = window.Telegram && window.Telegram.WebApp;
+        const initData = tg && tg.initData ? tg.initData : '';
+        if (!initData) {
+            showAuthMessage('Please open BADDROP from the Telegram bot.', true);
+            return false;
+        }
         try {
-            const username = authUsername.value.trim();
-            const password = authPassword.value;
-            const loggedIn = await callApi('POST', '/api/auth/login', { username, password });
-            authPassword.value = '';
-            showToast(`Welcome back, ${loggedIn.user.username}!`);
-            await enterPlayerPortal(loggedIn);
+            if (tg.ready) tg.ready();
+            if (tg.expand) tg.expand();
         } catch (_) {}
-    });
+        try {
+            showAuthMessage('Signing in with Telegram...', false);
+            const res = await callApi('POST', '/api/auth/telegram', { initData }, false);
+            await enterPlayerPortal(res);
+            return true;
+        } catch (_) {
+            showAuthMessage('Telegram sign-in failed. Reopen the app from the bot and retry.', true);
+            return false;
+        }
+    }
+
+    if (retryLoginBtn) {
+        retryLoginBtn.addEventListener('click', () => { loginViaTelegram(); });
+    }
+
+    if (devLoginBtn) {
+        devLoginBtn.addEventListener('click', async () => {
+            try {
+                const res = await callApi('POST', '/api/auth/dev-login', { username: devUsername.value.trim() });
+                await enterPlayerPortal(res);
+            } catch (_) {}
+        });
+    }
 
     // =========================================================================
     // BOTTOM NAVIGATION: game | inventory | profile
@@ -398,7 +418,6 @@
                     await syncBalanceFromGet();
                     await syncItemsFromGet();
                 } else if (targetId === 'tab-profile') {
-                    promoFeedback.textContent = '';
                     const freshUser = await callApi('GET', '/api/me');
                     currentUser.balance = freshUser.balance;
                     updateBalanceDisplay(freshUser.balance);
@@ -1611,6 +1630,37 @@
     let userHasApprovedDeposit = false;
     let pendingWithdrawAmount = 0;
     let activeWalletModalMode = 'DEPOSIT';
+    let hasActiveDeposit = false;
+
+    const confirmModal = document.getElementById('confirmModal');
+    function askConfirm(title, text) {
+        return new Promise(resolve => {
+            document.getElementById('confirmModalTitle').textContent = title;
+            document.getElementById('confirmModalText').textContent = text;
+            const yes = document.getElementById('confirmModalYes');
+            const no = document.getElementById('confirmModalNo');
+            const done = (v) => {
+                confirmModal.classList.remove('open');
+                yes.removeEventListener('click', onYes);
+                no.removeEventListener('click', onNo);
+                resolve(v);
+            };
+            const onYes = () => done(true);
+            const onNo = () => done(false);
+            yes.addEventListener('click', onYes);
+            no.addEventListener('click', onNo);
+            confirmModal.classList.add('open');
+        });
+    }
+
+    function setActiveDeposit(flag) {
+        hasActiveDeposit = Boolean(flag);
+        if (profileWithdrawBtn) {
+            profileWithdrawBtn.disabled = hasActiveDeposit;
+            profileWithdrawBtn.classList.toggle('locked-btn', hasActiveDeposit);
+            profileWithdrawBtn.title = hasActiveDeposit ? 'Finish or cancel your active deposit first' : '';
+        }
+    }
 
     function applyWalletStep1ActionMode(mode) {
         activeWalletModalMode = mode === 'WITHDRAW' ? 'WITHDRAW' : 'DEPOSIT';
@@ -1657,6 +1707,7 @@
                 depositTimerDisplay.textContent = '00:00';
                 stopDepositCountdown();
                 activeDepositTxHash = null;
+                setActiveDeposit(false);
                 showToast('15-minute deposit timer expired. Please start a new deposit.', true);
                 setWalletStep(1);
                 return;
@@ -1700,11 +1751,11 @@
             const session = await callApi('GET', '/api/me/deposit/active', null, false);
             userHasPendingTransaction = Boolean(session && session.hasPendingTransaction);
             userHasApprovedDeposit = Boolean(session && session.hasApprovedDeposit);
-            if (session && session.adminUsername && depositAdminUsernameText) {
-                depositAdminUsernameText.textContent = session.adminUsername;
-            }
+            setActiveDeposit(Boolean(session && session.active && session.remainingSeconds > 0));
             if (session && session.active && session.remainingSeconds > 0) {
                 activeDepositTxHash = session.txHash || null;
+                if (depositMemoText) depositMemoText.textContent = session.memo || '';
+                if (depositReceiptInput) depositReceiptInput.value = '';
                 step2DepositAmountText.textContent = `$${Number(session.amount).toFixed(2)}`;
                 depositAddressText.textContent = session.address || 'UQCys13azAWTFuERWwjc_5sqKZxQEhJhbtGGaiyp2Sf55Hrg';
                 setWalletStep(2, 'DEPOSIT');
@@ -1727,6 +1778,10 @@
                 setWalletStep(1, 'DEPOSIT');
             }
         } else {
+            if (await checkAndRestoreActiveDeposit(false)) {
+                showToast('Finish or cancel your active deposit before withdrawing', true);
+                return;
+            }
             modalBalanceAmount.value = '0';
             setWalletStep(1, 'WITHDRAW');
         }
@@ -1795,15 +1850,17 @@
                 showToast('Minimum deposit amount is $1.00 USDT', true);
                 return;
             }
+            const okAmount = await askConfirm('Confirm amount', `Deposit $${amount.toFixed(2)} USDT. Is the amount correct?`);
+            if (!okAmount) return;
             const session = await callApi('POST', '/api/me/deposit/start', {
                 amount: Number(amount.toFixed(2))
             }, true, { 'Idempotency-Key': newIdempotencyKey() });
+            setActiveDeposit(true);
             activeDepositTxHash = session.txHash || null;
+            if (depositMemoText) depositMemoText.textContent = session.memo || '';
+            if (depositReceiptInput) depositReceiptInput.value = '';
             step2DepositAmountText.textContent = `$${Number(session.amount).toFixed(2)}`;
             depositAddressText.textContent = session.address || 'UQCys13azAWTFuERWwjc_5sqKZxQEhJhbtGGaiyp2Sf55Hrg';
-            if (session.adminUsername && depositAdminUsernameText) {
-                depositAdminUsernameText.textContent = session.adminUsername;
-            }
             setWalletStep(2, 'DEPOSIT');
             startDepositCountdown(session.expiresAt, session.remainingSeconds);
         } catch (_) {}
@@ -1813,15 +1870,44 @@
     depositSentBtn.addEventListener('click', async () => {
         try {
             const txHash = activeDepositTxHash;
-            await callApi('POST', '/api/me/deposit/confirm', { txHash });
+            const receipt = depositReceiptInput ? depositReceiptInput.value.trim() : '';
+            if (!receipt) {
+                if (depositReceiptInput) {
+                    depositReceiptInput.classList.add('input-error');
+                    depositReceiptInput.focus();
+                }
+                showToast('Paste the transaction hash or explorer link first', true);
+                return;
+            }
+            await callApi('POST', '/api/me/deposit/confirm', { txHash, receipt });
             stopDepositCountdown();
             activeDepositTxHash = null;
+            setActiveDeposit(false);
+            if (depositReceiptInput) depositReceiptInput.value = '';
             userHasPendingTransaction = true;
             await syncBalanceFromGet();
             setWalletStep(3);
             showToast('Deposit marked as Sent! Waiting for Admin approval.');
         } catch (_) {}
     });
+
+    const cancelDepositBtn = document.getElementById('cancelDepositBtn');
+    if (cancelDepositBtn) {
+        cancelDepositBtn.addEventListener('click', async () => {
+            const ok = await askConfirm('Cancel deposit', 'Cancel this deposit? Do not cancel if you have already sent the payment.');
+            if (!ok) return;
+            try {
+                await callApi('POST', '/api/me/deposit/cancel', {});
+                stopDepositCountdown();
+                activeDepositTxHash = null;
+                setActiveDeposit(false);
+                if (depositReceiptInput) depositReceiptInput.value = '';
+                modalBalanceAmount.value = '0';
+                setWalletStep(1, 'DEPOSIT');
+                showToast('Deposit cancelled');
+            } catch (_) {}
+        });
+    }
 
     // STEP 1 -> STEP 2 (WITHDRAW): Validates min $2.50 USDT, min 1 approved deposit, & no PENDING tx before opening Withdraw Step 2
     modalWithdrawBtn.addEventListener('click', async () => {
@@ -1835,6 +1921,10 @@
             showToast('You must have at least 1 approved deposit on your account before withdrawing', true);
             return;
         }
+        if (hasActiveDeposit) {
+            showToast('Finish or cancel your active deposit before withdrawing', true);
+            return;
+        }
         if (userHasPendingTransaction) {
             showToast('You already have a pending transaction awaiting admin review', true);
             return;
@@ -1843,6 +1933,8 @@
             showToast(`Insufficient balance ($${currentUser.balance.toFixed(2)})`, true);
             return;
         }
+        const okWithdraw = await askConfirm('Confirm amount', `Withdraw $${amount.toFixed(2)} USDT. Is the amount correct?`);
+        if (!okWithdraw) return;
         pendingWithdrawAmount = amount;
         step2WithdrawAmountText.textContent = `$${amount.toFixed(2)}`;
         withdrawWalletAddressInput.value = '';
@@ -1885,77 +1977,21 @@
     });
 
     // =========================================================================
-    // TAB 3: PROFILE ACTIONS & PROMO FIELD
+    // TAB 3: PROFILE ACTIONS
     // =========================================================================
-    // The promo field used to double as an admin-password entry. Admin access now lives on its own
-    // page (/admin-login.html: username + password + TOTP), so this field never talks to the server.
-    async function handlePromoSubmit() {
-        promoFeedback.textContent = 'Promo is not found';
-    }
-
-    promoSubmitBtn.addEventListener('click', handlePromoSubmit);
-    promoInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            handlePromoSubmit();
+    function copyText(text, label) {
+        if (!text) return;
+        const done = () => showToast(`${label} copied`);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(() => {});
         }
-    });
-
-    changePasswordBtn.addEventListener('click', () => {
-        if (currentPasswordInput) {
-            currentPasswordInput.value = '';
-            currentPasswordInput.classList.remove('input-error');
-        }
-        newPasswordInput.value = '';
-        newPasswordInput.classList.remove('input-error');
-        passwordModal.classList.add('open');
-    });
-
-    closePasswordModalBtn.addEventListener('click', () => {
-        passwordModal.classList.remove('open');
-    });
-
-    if (currentPasswordInput) {
-        currentPasswordInput.addEventListener('input', () => {
-            currentPasswordInput.classList.remove('input-error');
-        });
     }
-
-    newPasswordInput.addEventListener('input', () => {
-        newPasswordInput.classList.remove('input-error');
-    });
-
-    confirmPasswordBtn.addEventListener('click', async () => {
-        try {
-            const currentPassword = currentPasswordInput ? currentPasswordInput.value : '';
-            const newPassword = newPasswordInput.value;
-
-            if (!currentPassword) {
-                if (currentPasswordInput) {
-                    currentPasswordInput.classList.add('input-error');
-                    currentPasswordInput.focus();
-                }
-                showToast('Please enter your current password', true);
-                return;
-            }
-
-            if (!newPassword || !newPassword.trim()) {
-                newPasswordInput.classList.add('input-error');
-                newPasswordInput.focus();
-                showToast('Please enter a new password', true);
-                return;
-            }
-
-            const changed = await callApi('POST', '/api/auth/password', { currentPassword, newPassword });
-            // All other sessions were revoked server-side; this one got a fresh CSRF token.
-            csrfToken = changed.csrfToken || csrfToken;
-            currentPasswordInput.value = '';
-            newPasswordInput.value = '';
-            updateProfileUI();
-            passwordModal.classList.remove('open');
-            showToast('Password updated successfully');
-        } catch (_) {}
-    });
+    if (copyMemoBox) {
+        copyMemoBox.addEventListener('click', () => copyText(depositMemoText.textContent, 'Memo'));
+    }
+    if (depositReceiptInput) {
+        depositReceiptInput.addEventListener('input', () => depositReceiptInput.classList.remove('input-error'));
+    }
 
     function closeLogoutModal() {
         if (logoutModal) {
@@ -1987,6 +2023,7 @@
                 clearSession();
                 playerScreen.classList.remove('active');
                 welcomeScreen.classList.add('active');
+                showAuthMessage('Logged out.', true);
                 showToast('Logged out');
             } catch (_) {}
         });
@@ -2041,15 +2078,12 @@
             }
 
             try {
-                const confirmPassword = window.prompt('Enter your password to confirm account deletion');
-                if (!confirmPassword) return;
-                await callApi('POST', '/api/auth/delete', { password: confirmPassword });
+                await callApi('POST', '/api/auth/delete', { confirm: currentUser.username });
                 closeDeleteAccountModal();
                 stopDepositCountdown();
                 balanceModal.classList.remove('open');
                 clearSession();
-                authUsername.value = '';
-                authPassword.value = '';
+                showAuthMessage('Account deleted. Reopen from Telegram to start again.', true);
                 playerScreen.classList.remove('active');
                 welcomeScreen.classList.add('active');
                 showToast('Account deleted');
@@ -2067,8 +2101,10 @@
             // The cookie (if any) authenticates this call; a 401 simply means "not logged in".
             const me = await callApi('GET', '/api/auth/me', null, false);
             await enterPlayerPortal(me);
+            return;
         } catch (_) {
             csrfToken = '';
         }
+        await loginViaTelegram();
     })();
 })();

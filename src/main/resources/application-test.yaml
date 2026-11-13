@@ -38,6 +38,12 @@ slots:
     username: ${ADMIN_USERNAME:}
     password-hash: ${ADMIN_PASSWORD_HASH:}
     totp-secret: ${ADMIN_TOTP_SECRET:}
+  telegram:
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    max-auth-age-seconds: 3600
+  auth:
+    # Local only: log in as any username without Telegram. Never enable in prod.
+    dev-login-enabled: true
   cookie:
     # Local dev runs on plain http. JUnit tests force this back to true (see IntegrationTestBase).
     secure: false

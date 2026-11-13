@@ -60,10 +60,9 @@ class CsrfAndOriginTest extends IntegrationTestBase {
     }
 
     @Test
-    void foreignOriginIsRejectedOnLoginAndRegisterToo() {
+    void foreignOriginIsRejectedOnTelegramLoginToo() {
         Map<String, String> h = Map.of("Origin", "https://evil.example");
-        assertEquals(403, anonymous().post("/api/auth/login", map("username", "x", "password", "y"), h).status(), "login CSRF");
-        assertEquals(403, anonymous().post("/api/auth/register", map("username", uniqueUsername(), "password", PLAYER_PASSWORD), h).status());
+        assertEquals(403, anonymous().post("/api/auth/telegram", map("initData", initData(7_700_000_001L, uniqueUsername())), h).status(), "login CSRF");
     }
 
     @Test

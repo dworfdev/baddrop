@@ -49,7 +49,8 @@ class ConcurrentMoneyTest extends IntegrationTestBase {
         ApiClient p = registerPlayer();
         String username = (String) p.get("/api/me").json().get("username");
         String tx = (String) p.post("/api/me/deposit/start", map("amount", new BigDecimal("5.00")), idem()).json().get("txHash");
-        List<ApiClient.Response> rs = Concurrently.run(THREADS, () -> p.post("/api/me/deposit/confirm", map("txHash", tx)));
+        String receipt = freshReceipt();
+        List<ApiClient.Response> rs = Concurrently.run(THREADS, () -> p.post("/api/me/deposit/confirm", map("txHash", tx, "receipt", receipt)));
         assertEquals(1, Concurrently.count(rs, 200), rs.stream().map(ApiClient.Response::status).toList().toString());
         long pendingForUser = admin().get("/api/admin/transactions/pending").jsonList().stream()
                 .filter(t -> username.equals(t.get("username"))).count();
@@ -60,9 +61,8 @@ class ConcurrentMoneyTest extends IntegrationTestBase {
     void parallelApprovalsCreditTheDepositExactlyOnce() {
         ApiClient p = registerPlayer();
         String tx = (String) p.post("/api/me/deposit/start", map("amount", new BigDecimal("5.00")), idem()).json().get("txHash");
-        p.post("/api/me/deposit/confirm", map("txHash", tx));
-        List<ApiClient.Response> rs = Concurrently.runEach(THREADS, i -> admin().post("/api/admin/transactions/" + tx + "/approve",
-                map("externalTxHash", "chain" + freshKey().replace("-", ""))));
+p.post("/api/me/deposit/confirm", map("txHash", tx, "receipt", freshReceipt()));
+        List<ApiClient.Response> rs = Concurrently.runEach(THREADS, i -> admin().post("/api/admin/transactions/" + tx + "/approve", map()));
         assertEquals(1, Concurrently.count(rs, 200), rs.stream().map(ApiClient.Response::status).toList().toString());
         assertMoney("5.00", balanceOf(p));
     }
@@ -73,9 +73,10 @@ class ConcurrentMoneyTest extends IntegrationTestBase {
         ApiClient b = registerPlayer();
         String txA = (String) a.post("/api/me/deposit/start", map("amount", new BigDecimal("5.00")), idem()).json().get("txHash");
         String txB = (String) b.post("/api/me/deposit/start", map("amount", new BigDecimal("5.00")), idem()).json().get("txHash");
-        a.post("/api/me/deposit/confirm", map("txHash", txA));
-        b.post("/api/me/deposit/confirm", map("txHash", txB));
-        String sameChainHash = "chain" + freshKey().replace("-", "");
+        a.post("/api/me/deposit/confirm", map("txHash", txA, "receipt", freshReceipt()));
+        b.post("/api/me/deposit/confirm", map("txHash", txB, "receipt", freshReceipt()));
+        // the admin override path is the only way two deposits can end up pointing at one chain hash
+        String sameChainHash = freshReceipt();
         List<ApiClient.Response> rs = Concurrently.runEach(2, i -> admin().post("/api/admin/transactions/" + (i == 0 ? txA : txB) + "/approve",
                 map("externalTxHash", sameChainHash)));
         assertEquals(1, Concurrently.count(rs, 200), "the unique constraint must stop the second credit: " + rs.stream().map(ApiClient.Response::status).toList());
@@ -141,27 +142,13 @@ class ConcurrentMoneyTest extends IntegrationTestBase {
     }
 
     @Test
-    void parallelRegistrationsOfOneUsernameYieldOneAccountAndNoServerErrors() {
+    void parallelFirstLoginsOfOneTelegramUserYieldOneAccountAndNoServerErrors() {
         String name = uniqueUsername();
+        long id = 7_500_000_000L + (System.nanoTime() % 1_000_000);
         List<ApiClient.Response> rs = Concurrently.run(THREADS, () ->
-                anonymous().post("/api/auth/register", map("username", name, "password", PLAYER_PASSWORD)));
-        assertEquals(1, Concurrently.count(rs, 201));
-        assertEquals(THREADS - 1, Concurrently.count(rs, 409));
-    }
-
-    @Test
-    void parallelPasswordChangesLeaveExactlyOneValidPassword() {
-        String name = uniqueUsername();
-        ApiClient p = registerPlayer(name);
-        List<ApiClient.Response> rs = Concurrently.runEach(5, i -> p.post("/api/auth/password",
-                map("currentPassword", PLAYER_PASSWORD, "newPassword", "new-password-number-" + i)));
-        long ok = Concurrently.count(rs, 200);
-        assertTrue(ok >= 1, rs.stream().map(ApiClient.Response::status).toList().toString());
-        long usable = 0;
-        for (int i = 0; i < 5; i++) {
-            if (anonymous().post("/api/auth/login", map("username", name, "password", "new-password-number-" + i)).status() == 200) usable++;
-        }
-        assertEquals(1, usable, "the last committed change wins and only one password works");
-        assertEquals(401, anonymous().post("/api/auth/login", map("username", name, "password", PLAYER_PASSWORD)).status());
+                anonymous().post("/api/auth/telegram", map("initData", initData(id, name))));
+        assertEquals(THREADS, Concurrently.count(rs, 200), rs.stream().map(ApiClient.Response::status).toList().toString());
+        long distinct = rs.stream().map(r -> ((Map<String, Object>) r.json().get("user")).get("username")).distinct().count();
+        assertEquals(1, distinct, "all racing logins must land on the same account");
     }
 }

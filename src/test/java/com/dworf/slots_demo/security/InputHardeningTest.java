@@ -20,20 +20,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class InputHardeningTest extends IntegrationTestBase {
 
     /** C2 / H21: stored XSS in the admin panel was possible because any string was a valid username. */
+    /** C2 / H21: stored XSS in the admin panel was possible because any string was a valid username. */
     @ParameterizedTest
     @ValueSource(strings = {
             "<img src=x onerror=alert(1)>", "<script>alert(1)</script>", "\"><svg/onload=alert(1)>",
-            "javascript:alert(1)", "a' OR '1'='1", "admin'--", "x; DROP TABLE users;--", "name with spaces", "emoji😀name", "a/b", "..", "%3Cscript%3E"})
-    void hostileUsernamesCannotBeRegistered(String hostile) {
-        ApiClient.Response r = anonymous().post("/api/auth/register", map("username", hostile, "password", PLAYER_PASSWORD));
-        assertEquals(400, r.status(), "accepted hostile username: " + hostile + " -> " + r.body());
-    }
-
-    @Test
-    void usernameLengthBoundsAreEnforced() {
-        assertEquals(400, anonymous().post("/api/auth/register", map("username", "ab", "password", PLAYER_PASSWORD)).status());
-        assertEquals(400, anonymous().post("/api/auth/register", map("username", "a".repeat(25), "password", PLAYER_PASSWORD)).status());
-        assertEquals(201, anonymous().post("/api/auth/register", map("username", ("n" + System.nanoTime()).substring(0, 20), "password", PLAYER_PASSWORD)).status());
+            "javascript:alert(1)", "a' OR '1'='1", "admin'--", "x; DROP TABLE users;--", "name with spaces", "emoji😀name", "a/b", "..", "%3Cscript%3E", "ab", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"})
+    void hostileTelegramNamesAreSanitisedIntoAValidUsername(String hostile) {
+        long id = 7_600_000_000L + Math.abs(hostile.hashCode() % 1_000_000);
+        String signed = com.dworf.slots_demo.security.TelegramInitData.sign(
+                BOT_TOKEN, id, hostile, hostile, java.time.Instant.now().getEpochSecond());
+        ApiClient c = anonymous();
+        ApiClient.Response r = c.post("/api/auth/telegram", map("initData", signed));
+        assertEquals(200, r.status(), "login failed for " + hostile + " -> " + r.body());
+        String username = (String) ((Map<String, Object>) r.json().get("user")).get("username");
+        assertTrue(username.matches("[a-z0-9_]{3,24}"), "username escaped the policy: " + username);
     }
 
     @Test
@@ -47,7 +47,7 @@ class InputHardeningTest extends IntegrationTestBase {
 
     @Test
     void malformedJsonYieldsACleanBadRequest() {
-        ApiClient.Response r = anonymous().post("/api/auth/login", "{not json");
+        ApiClient.Response r = anonymous().post("/api/auth/telegram", "{not json");
         assertEquals(400, r.status());
         assertCleanError(r);
     }
@@ -63,16 +63,16 @@ class InputHardeningTest extends IntegrationTestBase {
     }
 
     @Test
-    void hugeBodiesAndPasswordsAreRejectedNotCrashed() {
+    void hugeInitDataIsRejectedNotCrashed() {
         String huge = "a".repeat(200_000);
-        ApiClient.Response r = anonymous().post("/api/auth/register", map("username", uniqueUsername(), "password", huge));
-        assertEquals(400, r.status());
+        ApiClient.Response r = anonymous().post("/api/auth/telegram", map("initData", huge));
+        assertTrue(r.status() >= 400 && r.status() < 500, "status " + r.status());
         assertCleanError(r);
     }
 
     @Test
     void wrongContentTypeIsA4xxNever5xx() {
-        ApiClient.Response r = anonymous().send("POST", "/api/auth/login", "username=a&password=b",
+        ApiClient.Response r = anonymous().send("POST", "/api/auth/telegram", "initData=a",
                 Map.of("Content-Type", "application/x-www-form-urlencoded"), false);
         assertTrue(r.status() >= 400 && r.status() < 500, "status " + r.status());
         assertCleanError(r);
@@ -91,7 +91,7 @@ class InputHardeningTest extends IntegrationTestBase {
 
     @Test
     void nullBytesAndControlCharactersAreHandled() {
-        ApiClient.Response r = anonymous().post("/api/auth/login", map("username", "bob\u0000", "password", "x\u0007y"));
+        ApiClient.Response r = anonymous().post("/api/auth/telegram", map("initData", "user=bob\u0000&hash=x\u0007y"));
         assertTrue(r.status() == 400 || r.status() == 401, "status " + r.status());
     }
 

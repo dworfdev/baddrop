@@ -41,7 +41,7 @@ class AccessControlTest extends IntegrationTestBase {
         fund(alice, "20.00");
         String slug = (String) anonymous().get("/api/cases").jsonList().get(0).get("slug");
 
-        ApiClient.Response r = alice.post("/api/me/cases/buy", map("username", bobName, "password", PLAYER_PASSWORD, "item", slug, "quantity", 1), idem());
+        ApiClient.Response r = alice.post("/api/me/cases/buy", map("username", bobName, "item", slug, "quantity", 1), idem());
         // whether the case is affordable or not, Bob must be untouched
         assertMoney("20.00", balanceOf(bob));
         assertTrue(((List<?>) bob.get("/api/me/items").json().get("items")).isEmpty());
@@ -56,7 +56,7 @@ class AccessControlTest extends IntegrationTestBase {
         ApiClient bob = registerPlayer();
         ApiClient alice = registerPlayer();
         String bobTx = (String) bob.post("/api/me/deposit/start", map("amount", new BigDecimal("3.00")), idem()).json().get("txHash");
-        assertEquals(409, alice.post("/api/me/deposit/confirm", map("txHash", bobTx)).status(),
+        assertEquals(409, alice.post("/api/me/deposit/confirm", map("txHash", bobTx, "receipt", freshReceipt())).status(),
                 "confirming somebody else's deposit session must fail");
         assertEquals(true, bob.get("/api/me/deposit/active").json().get("active"), "Bob's session is untouched");
         assertEquals(false, alice.get("/api/me/deposit/active").json().get("active"));
@@ -66,8 +66,8 @@ class AccessControlTest extends IntegrationTestBase {
     void playersCannotApproveTheirOwnDeposits() {
         ApiClient p = registerPlayer();
         String tx = (String) p.post("/api/me/deposit/start", map("amount", new BigDecimal("1000.00")), idem()).json().get("txHash");
-        p.post("/api/me/deposit/confirm", map("txHash", tx));
-        assertEquals(403, p.post("/api/admin/transactions/" + tx + "/approve", map("externalTxHash", "chain" + freshKey().replace("-", ""))).status());
+        p.post("/api/me/deposit/confirm", map("txHash", tx, "receipt", freshReceipt()));
+        assertEquals(403, p.post("/api/admin/transactions/" + tx + "/approve", map("externalTxHash", freshReceipt())).status());
         assertMoney("0.00", balanceOf(p));
     }
 

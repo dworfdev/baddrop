@@ -7,6 +7,7 @@ import java.util.List;
 
 public record AdminUserOverviewResponse(
         Long id,
+        Long telegramId,
         String username,
         BigDecimal balance,
         List<String> items,
@@ -20,6 +21,7 @@ public record AdminUserOverviewResponse(
     ) {
         return new AdminUserOverviewResponse(
                 user.getId(),
+                user.getTelegramId(),
                 user.getUsername(),
                 user.getBalance(),
                 List.copyOf(user.getItems()),

@@ -8,6 +8,7 @@ import com.dworf.slots_demo.entity.TransactionType;
 import com.dworf.slots_demo.entity.User;
 import com.dworf.slots_demo.repository.BalanceTransactionRepository;
 import com.dworf.slots_demo.repository.UserRepository;
+import com.dworf.slots_demo.security.TonTxHash;
 import com.dworf.slots_demo.security.UsernamePolicy;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -36,19 +37,39 @@ public class TransactionReviewService {
         this.clock = clock;
     }
 
+    /**
+     * Deposit: the on-chain hash the player submitted is what gets approved; the admin may type or paste another one
+     * (a hash or explorer link) to correct it. Either way it is normalised and can back only ONE deposit (C8).
+     * Withdrawal: an optional payout hash for the record.
+     */
     @Transactional
     public TransactionResponse approve(String txHash, String externalTxHash, String adminName, String ip) {
         BalanceTransaction tx = lockPending(txHash);
         String external = externalTxHash == null ? null : externalTxHash.trim();
+        if (external != null && external.isEmpty()) {
+            external = null;
+        }
         if (tx.getType() == TransactionType.DEPOSIT) {
-            if (external == null || !EXTERNAL_HASH.matcher(external).matches()) {
+            String chosen;
+            if (external == null) {
+                chosen = tx.getExternalTxHash();
+            } else {
+                try {
+                    chosen = TonTxHash.normalize(external);
+                } catch (IllegalArgumentException e) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+                }
+            }
+            if (chosen == null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "externalTxHash (the verified on-chain transaction hash) is required to approve a deposit");
             }
-        } else if (external != null && external.isEmpty()) {
-            external = null;
-        }
-        if (external != null) {
+            if (!chosen.equals(tx.getExternalTxHash()) && transactionRepository.existsByExternalTxHash(chosen)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "This on-chain transaction was already used");
+            }
+            tx.setExternalTxHash(chosen);
+            external = chosen;
+        } else if (external != null) {
             if (!EXTERNAL_HASH.matcher(external).matches()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "externalTxHash has an invalid format");
             }
@@ -78,11 +99,18 @@ public class TransactionReviewService {
             user.setBalance(user.getBalance().add(tx.getAmount()));
             userRepository.save(user);
         }
+        String releasedReceipt = tx.getType() == TransactionType.DEPOSIT ? tx.getExternalTxHash() : null;
+        if (releasedReceipt != null) {
+            // a rejected deposit must not keep the chain hash locked: otherwise someone could submit another
+            // player's (public) payment hash first and block its rightful owner. The hash stays in the audit trail.
+            tx.setExternalTxHash(null);
+        }
         tx.setStatus(TransactionStatus.REJECTED);
         tx.markDecided(adminName, clock.instant());
         TransactionResponse res = TransactionResponse.fromEntity(transactionRepository.save(tx));
         audit.record(adminName, "TX_REJECTED", tx.getTxHash(),
-                tx.getType() + " " + tx.getAmount() + " user=" + tx.getUser().getUsername(), ip);
+                tx.getType() + " " + tx.getAmount() + " user=" + tx.getUser().getUsername()
+                        + (releasedReceipt != null ? " receipt=" + releasedReceipt : ""), ip);
         return res;
     }
 
@@ -92,16 +120,27 @@ public class TransactionReviewService {
                 .stream().map(TransactionResponse::fromEntity).toList();
     }
 
+    /** Looks a player up by username, or by Telegram id when the query is all digits. */
     @Transactional(readOnly = true)
-    public AdminUserOverviewResponse overview(String rawUsername) {
-        String username;
-        try {
-            username = UsernamePolicy.normalize(rawUsername);
-        } catch (IllegalArgumentException e) {
+    public AdminUserOverviewResponse overview(String rawQuery) {
+        String q = rawQuery == null ? "" : rawQuery.trim();
+        if (q.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username must not be blank");
         }
-        User user = userRepository.findByUsernameAndDeletedAtIsNull(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        User user = null;
+        if (q.matches("\\d{1,18}")) {
+            user = userRepository.findByTelegramIdAndDeletedAtIsNull(Long.parseLong(q)).orElse(null);
+        }
+        if (user == null) {
+            String username;
+            try {
+                username = UsernamePolicy.normalize(q);
+            } catch (IllegalArgumentException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username must not be blank");
+            }
+            user = userRepository.findByUsernameAndDeletedAtIsNull(username)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        }
         List<TransactionResponse> pending = transactionRepository
                 .findByUserAndStatusOrderByCreatedAtDesc(user, TransactionStatus.PENDING)
                 .stream().map(TransactionResponse::fromEntity).toList();

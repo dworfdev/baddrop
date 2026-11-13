@@ -26,7 +26,7 @@ class AdminFlowTest extends IntegrationTestBase {
 
         assertTrue(admin().get("/api/admin/transactions/pending").jsonList().stream().noneMatch(t -> username.equals(t.get("username"))),
                 "an unconfirmed (AWAITING_PAYMENT) deposit must not appear in the review queue");
-        p.post("/api/me/deposit/confirm", map("txHash", tx));
+        p.post("/api/me/deposit/confirm", map("txHash", tx, "receipt", freshReceipt()));
         assertTrue(admin().get("/api/admin/transactions/pending").jsonList().stream().anyMatch(t -> username.equals(t.get("username"))));
     }
 
@@ -73,5 +73,15 @@ class AdminFlowTest extends IntegrationTestBase {
     void unknownOrMalformedTransactionHashesAreHandledCleanly() {
         assertEquals(404, admin().post("/api/admin/transactions/" + "f".repeat(64) + "/reject", map()).status());
         assertEquals(400, admin().post("/api/admin/transactions/" + "f".repeat(65) + "/reject", map()).status());
+    }
+
+    @Test
+    void adminCanLookAPlayerUpByTelegramId() {
+        String name = uniqueUsername();
+        registerPlayer(name);
+        ApiClient.Response r = admin().get("/api/admin/users/" + telegramIdOf(name));
+        assertEquals(200, r.status(), r.body());
+        assertEquals(name, r.json().get("username"));
+        assertEquals(telegramIdOf(name), ((Number) r.json().get("telegramId")).longValue());
     }
 }
