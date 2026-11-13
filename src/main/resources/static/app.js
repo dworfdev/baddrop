@@ -131,10 +131,9 @@
     const caseInspectTableBody = document.getElementById('caseInspectTableBody');
 
     const caseOutcomeModal = document.getElementById('caseOutcomeModal');
-    const caseOutcomeTitle = document.getElementById('caseOutcomeTitle');
-    const caseOutcomeOkBtn = document.getElementById('caseOutcomeOkBtn');
+    const caseOutcomeBgVideo = document.getElementById('caseOutcomeBgVideo');
+    const caseOutcomeTitleImg = document.getElementById('caseOutcomeTitleImg');
     const caseOutcomeUsdtAmount = document.getElementById('caseOutcomeUsdtAmount');
-    const caseOutcomeBody = caseOutcomeModal ? caseOutcomeModal.querySelector('.case-outcome-body') : null;
 
     const toastContainer = document.getElementById('toastContainer');
 
@@ -959,6 +958,84 @@
         'TOP PRIZE': { className: 'tier-jackpot', tag: 'TOP PRIZE' }
     };
 
+    const OUTCOME_TIER_META = {
+        'COMMON SCRAP': {
+            rank: 1,
+            label: 'COMMON SCRAP',
+            image: '/imgs/win-titles/trash.png',
+            className: 'tier-floor',
+            isHighTier: false
+        },
+        'MINOR RETURN': {
+            rank: 2,
+            label: 'MINOR RETURN',
+            image: '/imgs/win-titles/pittance.png',
+            className: 'tier-common',
+            isHighTier: false
+        },
+        'NEAR EVEN': {
+            rank: 3,
+            label: 'NEAR EVEN',
+            image: '/imgs/win-titles/almost.png',
+            className: 'tier-even',
+            isHighTier: false
+        },
+        'SMALL WIN': {
+            rank: 4,
+            label: 'SMALL WIN',
+            image: '/imgs/win-titles/fine.png',
+            className: 'tier-profit',
+            isHighTier: true
+        },
+        'NICE WIN': {
+            rank: 5,
+            label: 'NICE WIN',
+            image: '/imgs/win-titles/nice.png',
+            className: 'tier-rare',
+            isHighTier: true
+        },
+        'TOP PRIZE': {
+            rank: 6,
+            label: 'TOP PRIZE',
+            image: '/imgs/win-titles/jackpot.png',
+            className: 'tier-jackpot',
+            isHighTier: true
+        }
+    };
+
+    // Preload all 6 outcome title graphics so entrance animations start without network delay
+    Object.values(OUTCOME_TIER_META).forEach(meta => {
+        const preloadImg = new Image();
+        preloadImg.src = meta.image;
+    });
+
+    function resolveOutcomeTierMetaFromSpin(spin) {
+        if (!spin) return OUTCOME_TIER_META['COMMON SCRAP'];
+        const rawLabel = typeof spin.outcomeTier === 'string' ? spin.outcomeTier : '';
+        const normalized = rawLabel.replace(/\s*\([^)]*\)\s*$/, '').trim().toUpperCase();
+        if (spin.jackpot || normalized === 'TOP PRIZE' || normalized === 'JACKPOT CAP') {
+            return OUTCOME_TIER_META['TOP PRIZE'];
+        }
+        if (OUTCOME_TIER_META[normalized]) {
+            return OUTCOME_TIER_META[normalized];
+        }
+        return OUTCOME_TIER_META['COMMON SCRAP'];
+    }
+
+    function resolveHighestOutcomeTierMeta(spins) {
+        if (!Array.isArray(spins) || spins.length === 0) {
+            return OUTCOME_TIER_META['COMMON SCRAP'];
+        }
+        let highest = OUTCOME_TIER_META['COMMON SCRAP'];
+        for (let i = 0; i < spins.length; i++) {
+            const candidate = resolveOutcomeTierMetaFromSpin(spins[i]);
+            if (candidate.rank > highest.rank) {
+                highest = candidate;
+            }
+        }
+        return highest;
+    }
+
     function classifySlotTier(itemOrLabel) {
         const rawLabel = typeof itemOrLabel === 'string'
             ? itemOrLabel
@@ -1064,6 +1141,47 @@
     }
 
     let activeSkipSpinHandler = null;
+    let outcomeStage2TimeoutId = null;
+    let outcomeDismissUnlockAtMs = 0;
+
+    function resetCaseOutcomeOverlayState() {
+        if (outcomeStage2TimeoutId !== null) {
+            clearTimeout(outcomeStage2TimeoutId);
+            outcomeStage2TimeoutId = null;
+        }
+        if (caseOutcomeBgVideo) {
+            try {
+                caseOutcomeBgVideo.pause();
+                caseOutcomeBgVideo.currentTime = 0;
+            } catch (_) {}
+            caseOutcomeBgVideo.classList.remove('active', 'fade-out');
+        }
+        if (caseOutcomeTitleImg) {
+            caseOutcomeTitleImg.classList.remove(
+                'anim-low-tier',
+                'anim-high-tier',
+                'tier-floor',
+                'tier-common',
+                'tier-even',
+                'tier-profit',
+                'tier-rare',
+                'tier-jackpot'
+            );
+        }
+        if (caseOutcomeUsdtAmount) {
+            caseOutcomeUsdtAmount.classList.remove('anim-payout-reveal', 'jackpot');
+        }
+    }
+
+    function closeCaseOutcomeOverlay() {
+        resetCaseOutcomeOverlayState();
+        if (caseOutcomeModal) {
+            caseOutcomeModal.classList.remove('open');
+        }
+        if (caseRouletteModal) {
+            caseRouletteModal.classList.remove('open');
+        }
+    }
 
     if (rouletteSkipBtn) {
         rouletteSkipBtn.addEventListener('click', () => {
@@ -1081,10 +1199,7 @@
         isResolvingCaseOpen = true;
         setSpinningLockState(true);
         initSlotTickAudio();
-
-        if (caseOutcomeModal) {
-            caseOutcomeModal.classList.remove('open');
-        }
+        closeCaseOutcomeOverlay();
 
         try {
             // 1. Backend execution: deduct crate(s) (or crate price * quantity on instant open) & select winning outcomes
@@ -1317,33 +1432,62 @@
             }
             setSpinningLockState(false);
 
-            // 6. Display combined outcome in "You won" modal
+            // 6. Display full-screen borderless cinematic outcome overlay with two-stage entrance animation
             if (caseOutcomeModal) {
-                if (caseOutcomeTitle) {
-                    caseOutcomeTitle.textContent = anyJackpot ? 'Jackpot!' : 'You won';
-                    caseOutcomeTitle.classList.toggle('jackpot', anyJackpot);
-                    caseOutcomeTitle.classList.remove('reveal-hidden');
-                    caseOutcomeTitle.classList.add('reveal-visible');
-                }
-                if (caseOutcomeBody) {
-                    caseOutcomeBody.classList.remove('reveal-hidden');
-                    caseOutcomeBody.classList.add('reveal-visible');
-                }
+                resetCaseOutcomeOverlayState();
+                const highestTierMeta = resolveHighestOutcomeTierMeta(spins);
+                const isJackpotHighlight = anyJackpot || highestTierMeta.rank === 6;
 
-                caseOutcomeUsdtAmount.textContent = totalWonAmount > 0
-                    ? `+$${totalWonAmount.toFixed(2)} USDT`
-                    : `$0.00 USDT`;
-
-                caseOutcomeUsdtAmount.classList.toggle('jackpot', anyJackpot);
-                caseOutcomeUsdtAmount.classList.remove('reveal-hidden');
-                caseOutcomeUsdtAmount.classList.add('reveal-visible');
-
-                if (caseOutcomeOkBtn) {
-                    caseOutcomeOkBtn.classList.remove('ok-btn-hidden');
-                    caseOutcomeOkBtn.classList.add('ok-btn-visible');
+                if (caseOutcomeTitleImg) {
+                    caseOutcomeTitleImg.src = highestTierMeta.image;
+                    caseOutcomeTitleImg.alt = highestTierMeta.label;
+                    caseOutcomeTitleImg.classList.add(highestTierMeta.className);
                 }
 
+                if (caseOutcomeUsdtAmount) {
+                    caseOutcomeUsdtAmount.textContent = totalWonAmount > 0
+                        ? `+$${totalWonAmount.toFixed(2)} USDT`
+                        : `$0.00 USDT`;
+                    caseOutcomeUsdtAmount.classList.toggle('jackpot', isJackpotHighlight);
+                }
+
+                // 750ms interaction lock so spamming 'Skip' does not immediately dismiss the reward screen
+                outcomeDismissUnlockAtMs = performance.now() + 750;
                 caseOutcomeModal.classList.add('open');
+
+                if (caseOutcomeBgVideo) {
+                    caseOutcomeBgVideo.loop = false;
+                    if (highestTierMeta.isHighTier) {
+                        caseOutcomeBgVideo.classList.remove('fade-out');
+                        caseOutcomeBgVideo.classList.add('active');
+                        try {
+                            caseOutcomeBgVideo.currentTime = 0;
+                        } catch (_) {}
+                        const playPromise = caseOutcomeBgVideo.play();
+                        if (playPromise && typeof playPromise.catch === 'function') {
+                            playPromise.catch(() => {});
+                        }
+                    } else {
+                        try {
+                            caseOutcomeBgVideo.pause();
+                        } catch (_) {}
+                        caseOutcomeBgVideo.classList.remove('active', 'fade-out');
+                    }
+                }
+
+                if (caseOutcomeTitleImg) {
+                    void caseOutcomeTitleImg.offsetWidth;
+                    caseOutcomeTitleImg.classList.add(
+                        highestTierMeta.isHighTier ? 'anim-high-tier' : 'anim-low-tier'
+                    );
+                }
+
+                outcomeStage2TimeoutId = setTimeout(() => {
+                    outcomeStage2TimeoutId = null;
+                    if (caseOutcomeUsdtAmount) {
+                        caseOutcomeUsdtAmount.classList.add('anim-payout-reveal');
+                    }
+                }, 420);
             }
         } catch (_) {
             activeSkipSpinHandler = null;
@@ -1357,13 +1501,34 @@
         }
     }
 
-    if (caseOutcomeOkBtn) {
-        caseOutcomeOkBtn.addEventListener('click', () => {
-            caseOutcomeModal.classList.remove('open');
-            if (caseRouletteModal) {
-                caseRouletteModal.classList.remove('open');
+    if (caseOutcomeBgVideo) {
+        caseOutcomeBgVideo.loop = false;
+        caseOutcomeBgVideo.addEventListener('timeupdate', () => {
+            if (!caseOutcomeBgVideo.classList.contains('active')) return;
+            const dur = caseOutcomeBgVideo.duration;
+            if (Number.isFinite(dur) && dur > 0 && dur - caseOutcomeBgVideo.currentTime <= 0.45) {
+                caseOutcomeBgVideo.classList.add('fade-out');
             }
         });
+        caseOutcomeBgVideo.addEventListener('ended', () => {
+            caseOutcomeBgVideo.classList.add('fade-out');
+            setTimeout(() => {
+                if (caseOutcomeBgVideo.classList.contains('fade-out')) {
+                    caseOutcomeBgVideo.classList.remove('active', 'fade-out');
+                }
+            }, 400);
+        });
+    }
+
+    if (caseOutcomeModal) {
+        const handleOutcomeDismiss = (e) => {
+            if (!caseOutcomeModal.classList.contains('open')) return;
+            if (performance.now() < outcomeDismissUnlockAtMs) return;
+            e.preventDefault();
+            closeCaseOutcomeOverlay();
+        };
+        caseOutcomeModal.addEventListener('pointerdown', handleOutcomeDismiss);
+        caseOutcomeModal.addEventListener('click', handleOutcomeDismiss);
     }
 
     inventorySearchInput.addEventListener('input', renderInventoryGrid);

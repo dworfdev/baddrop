@@ -10,7 +10,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css?v=33" />
+    <link rel="stylesheet" href="/styles.css?v=36" />
 </head>
 
 <body>
@@ -429,17 +429,13 @@
     </div>
 
     <!-- =================================================================== -->
-    <!-- MODAL 3B: CASE OPENING OUTCOME (TITLE + WIN AMOUNT + BUTTON)        -->
+    <!-- MODAL 3B: CASE OPENING OUTCOME (FULL-SCREEN CINEMATIC OVERLAY)      -->
     <!-- =================================================================== -->
-    <div id="caseOutcomeModal" class="modal-backdrop">
-        <div class="modal-card case-outcome-card">
-            <h3 id="caseOutcomeTitle" class="case-outcome-title">You won</h3>
-            <div class="case-outcome-body">
-                <div class="case-outcome-amount" id="caseOutcomeUsdtAmount">$0.00</div>
-            </div>
-            <div class="modal-actions single">
-                <button id="caseOutcomeOkBtn" type="button" class="pill-btn-primary">OK</button>
-            </div>
+    <div id="caseOutcomeModal" class="modal-backdrop case-outcome-backdrop">
+        <video id="caseOutcomeBgVideo" class="case-outcome-bg-video" src="/video/golden-rain.mp4?v=36" muted playsinline preload="auto" aria-hidden="true"></video>
+        <div id="caseOutcomeStage" class="case-outcome-stage">
+            <img id="caseOutcomeTitleImg" class="case-outcome-title-img" src="/imgs/win-titles/trash.png" alt="Outcome Tier" draggable="false" />
+            <div id="caseOutcomeUsdtAmount" class="case-outcome-amount">+$0.00 USDT</div>
         </div>
     </div>
 
@@ -490,7 +486,7 @@
     </div>
 
     <div id="toastContainer" class="toast-container"></div>
-    <script src="/app.js?v=33"></script>
+    <script src="/app.js?v=36"></script>
 </body>
 
 </html>

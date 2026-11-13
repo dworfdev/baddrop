@@ -7,33 +7,33 @@
     "active": true,
     "paytable": [
       {
-        "multiplier": 0.3,
-        "probability": 0.18,
+        "multiplier": 0.2,
+        "probability": 0.29,
         "label": "COMMON SCRAP"
       },
       {
-        "multiplier": 0.7,
-        "probability": 0.35,
+        "multiplier": 0.5,
+        "probability": 0.34,
         "label": "MINOR RETURN"
       },
       {
-        "multiplier": 0.95,
-        "probability": 0.25,
+        "multiplier": 0.85,
+        "probability": 0.17,
         "label": "NEAR EVEN"
       },
       {
-        "multiplier": 1.3,
-        "probability": 0.14,
+        "multiplier": 1.7,
+        "probability": 0.12,
         "label": "SMALL WIN"
       },
       {
-        "multiplier": 2.0,
-        "probability": 0.065,
+        "multiplier": 4.5,
+        "probability": 0.066,
         "label": "NICE WIN"
       },
       {
-        "multiplier": 3.2,
-        "probability": 0.015,
+        "multiplier": 15.0,
+        "probability": 0.014,
         "label": "TOP PRIZE"
       }
     ]
@@ -46,33 +46,33 @@
     "active": true,
     "paytable": [
       {
-        "multiplier": 0.3,
-        "probability": 0.16,
+        "multiplier": 0.2,
+        "probability": 0.3,
         "label": "COMMON SCRAP"
       },
       {
-        "multiplier": 0.65,
+        "multiplier": 0.5,
         "probability": 0.34,
         "label": "MINOR RETURN"
       },
       {
-        "multiplier": 0.95,
-        "probability": 0.26,
+        "multiplier": 0.85,
+        "probability": 0.165,
         "label": "NEAR EVEN"
       },
       {
-        "multiplier": 1.4,
-        "probability": 0.15,
+        "multiplier": 1.7,
+        "probability": 0.118,
         "label": "SMALL WIN"
       },
       {
-        "multiplier": 2.2,
-        "probability": 0.075,
+        "multiplier": 4.5,
+        "probability": 0.064,
         "label": "NICE WIN"
       },
       {
-        "multiplier": 3.5,
-        "probability": 0.015,
+        "multiplier": 15.0,
+        "probability": 0.013,
         "label": "TOP PRIZE"
       }
     ]
@@ -85,33 +85,33 @@
     "active": true,
     "paytable": [
       {
-        "multiplier": 0.3,
-        "probability": 0.15,
+        "multiplier": 0.2,
+        "probability": 0.31,
         "label": "COMMON SCRAP"
       },
       {
-        "multiplier": 0.65,
-        "probability": 0.33,
+        "multiplier": 0.5,
+        "probability": 0.34,
         "label": "MINOR RETURN"
       },
       {
-        "multiplier": 0.95,
-        "probability": 0.27,
+        "multiplier": 0.85,
+        "probability": 0.165,
         "label": "NEAR EVEN"
       },
       {
-        "multiplier": 1.45,
-        "probability": 0.16,
+        "multiplier": 1.7,
+        "probability": 0.115,
         "label": "SMALL WIN"
       },
       {
-        "multiplier": 2.4,
-        "probability": 0.075,
+        "multiplier": 4.5,
+        "probability": 0.058,
         "label": "NICE WIN"
       },
       {
-        "multiplier": 3.8,
-        "probability": 0.015,
+        "multiplier": 15.0,
+        "probability": 0.012,
         "label": "TOP PRIZE"
       }
     ]
@@ -124,33 +124,33 @@
     "active": true,
     "paytable": [
       {
-        "multiplier": 0.3,
-        "probability": 0.15,
+        "multiplier": 0.2,
+        "probability": 0.32,
         "label": "COMMON SCRAP"
       },
       {
-        "multiplier": 0.6,
-        "probability": 0.33,
+        "multiplier": 0.5,
+        "probability": 0.345,
         "label": "MINOR RETURN"
       },
       {
-        "multiplier": 0.9,
-        "probability": 0.27,
+        "multiplier": 0.85,
+        "probability": 0.16,
         "label": "NEAR EVEN"
       },
       {
-        "multiplier": 1.5,
-        "probability": 0.16,
+        "multiplier": 1.7,
+        "probability": 0.112,
         "label": "SMALL WIN"
       },
       {
-        "multiplier": 2.6,
-        "probability": 0.075,
+        "multiplier": 4.5,
+        "probability": 0.052,
         "label": "NICE WIN"
       },
       {
-        "multiplier": 4.2,
-        "probability": 0.015,
+        "multiplier": 15.0,
+        "probability": 0.011,
         "label": "TOP PRIZE"
       }
     ]
@@ -163,33 +163,33 @@
     "active": true,
     "paytable": [
       {
-        "multiplier": 0.25,
-        "probability": 0.14,
+        "multiplier": 0.2,
+        "probability": 0.33,
         "label": "COMMON SCRAP"
       },
       {
-        "multiplier": 0.6,
-        "probability": 0.33,
+        "multiplier": 0.5,
+        "probability": 0.35,
         "label": "MINOR RETURN"
       },
       {
-        "multiplier": 0.9,
-        "probability": 0.28,
+        "multiplier": 0.85,
+        "probability": 0.16,
         "label": "NEAR EVEN"
       },
       {
-        "multiplier": 1.6,
-        "probability": 0.15,
+        "multiplier": 1.7,
+        "probability": 0.105,
         "label": "SMALL WIN"
       },
       {
-        "multiplier": 2.8,
-        "probability": 0.08,
+        "multiplier": 4.5,
+        "probability": 0.045,
         "label": "NICE WIN"
       },
       {
-        "multiplier": 4.6,
-        "probability": 0.02,
+        "multiplier": 15.0,
+        "probability": 0.01,
         "label": "TOP PRIZE"
       }
     ]
@@ -202,33 +202,33 @@
     "active": true,
     "paytable": [
       {
-        "multiplier": 0.25,
-        "probability": 0.13,
+        "multiplier": 0.2,
+        "probability": 0.34,
         "label": "COMMON SCRAP"
       },
       {
-        "multiplier": 0.55,
-        "probability": 0.34,
+        "multiplier": 0.5,
+        "probability": 0.355,
         "label": "MINOR RETURN"
       },
       {
         "multiplier": 0.85,
-        "probability": 0.28,
+        "probability": 0.155,
         "label": "NEAR EVEN"
       },
       {
         "multiplier": 1.7,
-        "probability": 0.15,
+        "probability": 0.1,
         "label": "SMALL WIN"
       },
       {
-        "multiplier": 3.0,
-        "probability": 0.08,
+        "multiplier": 4.5,
+        "probability": 0.041,
         "label": "NICE WIN"
       },
       {
-        "multiplier": 5.0,
-        "probability": 0.02,
+        "multiplier": 15.0,
+        "probability": 0.009,
         "label": "TOP PRIZE"
       }
     ]
@@ -242,32 +242,32 @@
     "paytable": [
       {
         "multiplier": 0.2,
-        "probability": 0.13,
+        "probability": 0.35,
         "label": "COMMON SCRAP"
       },
       {
-        "multiplier": 0.55,
-        "probability": 0.33,
+        "multiplier": 0.5,
+        "probability": 0.36,
         "label": "MINOR RETURN"
       },
       {
         "multiplier": 0.85,
-        "probability": 0.28,
+        "probability": 0.15,
         "label": "NEAR EVEN"
       },
       {
-        "multiplier": 1.8,
-        "probability": 0.15,
+        "multiplier": 1.7,
+        "probability": 0.095,
         "label": "SMALL WIN"
       },
       {
-        "multiplier": 3.2,
-        "probability": 0.085,
+        "multiplier": 4.5,
+        "probability": 0.037,
         "label": "NICE WIN"
       },
       {
-        "multiplier": 5.5,
-        "probability": 0.025,
+        "multiplier": 15.0,
+        "probability": 0.008,
         "label": "TOP PRIZE"
       }
     ]
@@ -281,32 +281,32 @@
     "paytable": [
       {
         "multiplier": 0.2,
-        "probability": 0.12,
+        "probability": 0.36,
         "label": "COMMON SCRAP"
       },
       {
         "multiplier": 0.5,
-        "probability": 0.33,
+        "probability": 0.365,
         "label": "MINOR RETURN"
       },
       {
         "multiplier": 0.85,
-        "probability": 0.28,
+        "probability": 0.145,
         "label": "NEAR EVEN"
       },
       {
-        "multiplier": 1.9,
-        "probability": 0.155,
+        "multiplier": 1.7,
+        "probability": 0.09,
         "label": "SMALL WIN"
       },
       {
-        "multiplier": 3.4,
-        "probability": 0.09,
+        "multiplier": 4.5,
+        "probability": 0.033,
         "label": "NICE WIN"
       },
       {
-        "multiplier": 6.0,
-        "probability": 0.025,
+        "multiplier": 15.0,
+        "probability": 0.007,
         "label": "TOP PRIZE"
       }
     ]
@@ -320,32 +320,32 @@
     "paytable": [
       {
         "multiplier": 0.2,
-        "probability": 0.12,
+        "probability": 0.37,
         "label": "COMMON SCRAP"
       },
       {
         "multiplier": 0.5,
-        "probability": 0.32,
+        "probability": 0.37,
         "label": "MINOR RETURN"
       },
       {
         "multiplier": 0.85,
-        "probability": 0.28,
+        "probability": 0.14,
         "label": "NEAR EVEN"
       },
       {
-        "multiplier": 2.0,
-        "probability": 0.16,
+        "multiplier": 1.7,
+        "probability": 0.085,
         "label": "SMALL WIN"
       },
       {
-        "multiplier": 3.6,
-        "probability": 0.095,
+        "multiplier": 4.5,
+        "probability": 0.029,
         "label": "NICE WIN"
       },
       {
-        "multiplier": 6.5,
-        "probability": 0.025,
+        "multiplier": 15.0,
+        "probability": 0.006,
         "label": "TOP PRIZE"
       }
     ]
