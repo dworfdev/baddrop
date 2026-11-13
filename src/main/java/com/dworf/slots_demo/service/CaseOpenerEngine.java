@@ -48,6 +48,13 @@ public class CaseOpenerEngine {
     ) {
     }
 
+    /** 100% minus the 7% house inflow: a case above this drains the prize pool in expectation. */
+    public static final double MAX_RTP_PERCENT = 93.0;
+
+    public static boolean rtpWithinHouseCap(double rtpPercent) {
+        return rtpPercent <= MAX_RTP_PERCENT + 1e-9;
+    }
+
     private static final TypeReference<List<PaytableTier>> PAYTABLE_LIST_TYPE = new TypeReference<>() {};
 
     private final ObjectMapper objectMapper = new ObjectMapper();

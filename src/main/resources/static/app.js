@@ -1,13 +1,31 @@
 (() => {
-    const SESSION_STORAGE_KEY = 'slotsActiveUser';
+    // Auth is a server-side session in an HttpOnly cookie. The only secret JS holds is the
+    // per-session CSRF token (in memory only; recovered from GET /api/auth/me after a reload).
+    let csrfToken = '';
 
-    // Active logged-in player state
+    // Active logged-in player state (never contains a password)
     let currentUser = {
         username: '',
-        password: '',
         balance: 0.0,
         items: []
     };
+
+    // Escape any server-provided string before it is placed into an innerHTML template.
+    function escapeHtml(value) {
+        return String(value === undefined || value === null ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // Only same-origin paths or https URLs may be used as image sources.
+    function safeImageUrl(url) {
+        const u = String(url || '');
+        return (u.startsWith('/') && !u.startsWith('//')) || u.startsWith('https://') ? u : '';
+    }
+
+    function newIdempotencyKey() {
+        return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
+    }
 
     let displayedBalance = 0.0;
     const INVENTORY_FILTER_MODES = [
@@ -61,7 +79,7 @@
     const profileWithdrawBtn = document.getElementById('profileWithdrawBtn');
     const togglePasswordVisBtn = document.getElementById('togglePasswordVisBtn');
     const changePasswordBtn = document.getElementById('changePasswordBtn');
-    let isPasswordVisible = false;
+
     const logoutBtn = document.getElementById('logoutBtn');
     const deleteAccountBtn = document.getElementById('deleteAccountBtn');
     const promoInput = document.getElementById('promoInput');
@@ -163,11 +181,18 @@
         requestAnimationFrame(step);
     }
 
-    async function callApi(method, url, body = null, showToastOnError = true) {
+    async function callApi(method, url, body = null, showToastOnError = true, extraHeaders = null) {
         const options = {
             method,
+            credentials: 'same-origin',
             headers: { 'Accept': 'application/json' }
         };
+        if (method !== 'GET' && csrfToken) {
+            options.headers['X-CSRF-Token'] = csrfToken;
+        }
+        if (extraHeaders) {
+            Object.assign(options.headers, extraHeaders);
+        }
         if (body !== null) {
             options.headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(body);
@@ -191,15 +216,13 @@
         return data;
     }
 
-    function saveSession() {
-        sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-            username: currentUser.username,
-            password: currentUser.password
-        }));
-    }
-
     function clearSession() {
-        sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        csrfToken = '';
+        // Purge anything an older build may have left behind (it used to store the password here).
+        try {
+            sessionStorage.removeItem('slotsActiveUser');
+            sessionStorage.removeItem('adminKey');
+        } catch (_) {}
     }
 
     // =========================================================================
@@ -217,37 +240,20 @@
     function updateProfileUI() {
         topUsername.textContent = currentUser.username;
         profileUsername.textContent = currentUser.username;
-        const rawPass = currentUser.password || '';
-        profilePassword.textContent = isPasswordVisible
-            ? rawPass
-            : '\u2022'.repeat(Math.max(8, rawPass.length));
+        // The password is never available to the client: show a fixed mask and hide the reveal button.
+        profilePassword.textContent = '\u2022'.repeat(10);
         if (togglePasswordVisBtn) {
-            togglePasswordVisBtn.textContent = isPasswordVisible ? 'Hide' : 'Show';
+            togglePasswordVisBtn.style.display = 'none';
         }
     }
 
-    if (togglePasswordVisBtn) {
-        togglePasswordVisBtn.addEventListener('click', () => {
-            isPasswordVisible = !isPasswordVisible;
-            updateProfileUI();
-        });
-    }
-
     async function syncBalanceFromGet() {
-        const query = new URLSearchParams({
-            username: currentUser.username,
-            password: currentUser.password
-        }).toString();
-        const res = await callApi('GET', `/api/users/balance?${query}`);
+        const res = await callApi('GET', '/api/me/balance');
         updateBalanceDisplay(res.balance);
     }
 
     async function syncItemsFromGet() {
-        const query = new URLSearchParams({
-            username: currentUser.username,
-            password: currentUser.password
-        }).toString();
-        const res = await callApi('GET', `/api/users/items?${query}`);
+        const res = await callApi('GET', '/api/me/items');
         currentUser.items = Array.isArray(res.items) ? res.items : [];
         renderInventoryGrid();
     }
@@ -326,15 +332,15 @@
     // =========================================================================
     // SCREEN 1: CREATE USER & LOGIN FLOW
     // =========================================================================
-    async function enterPlayerPortal(userResponse, rawPassword) {
+    async function enterPlayerPortal(me) {
+        const userResponse = me.user;
+        csrfToken = me.csrfToken || '';
         currentUser = {
             username: userResponse.username,
-            password: rawPassword,
             balance: Number(userResponse.balance) || 0,
             items: Array.isArray(userResponse.items) ? userResponse.items : []
         };
-        saveSession();
-        isPasswordVisible = false;
+
         displayedBalance = 0;
         updateBalanceDisplay(currentUser.balance);
         updateProfileUI();
@@ -353,9 +359,10 @@
         try {
             const username = authUsername.value.trim();
             const password = authPassword.value;
-            const created = await callApi('POST', '/api/users', { username, password });
-            showToast(`Account '${created.username}' created!`);
-            await enterPlayerPortal(created, password);
+            const created = await callApi('POST', '/api/auth/register', { username, password });
+            authPassword.value = '';
+            showToast(`Account '${created.user.username}' created!`);
+            await enterPlayerPortal(created);
         } catch (_) {}
     });
 
@@ -363,9 +370,10 @@
         try {
             const username = authUsername.value.trim();
             const password = authPassword.value;
-            const loggedIn = await callApi('POST', '/api/users/login', { username, password });
-            showToast(`Welcome back, ${loggedIn.username}!`);
-            await enterPlayerPortal(loggedIn, password);
+            const loggedIn = await callApi('POST', '/api/auth/login', { username, password });
+            authPassword.value = '';
+            showToast(`Welcome back, ${loggedIn.user.username}!`);
+            await enterPlayerPortal(loggedIn);
         } catch (_) {}
     });
 
@@ -391,11 +399,7 @@
                     await syncItemsFromGet();
                 } else if (targetId === 'tab-profile') {
                     promoFeedback.textContent = '';
-                    const query = new URLSearchParams({
-                        username: currentUser.username,
-                        password: currentUser.password
-                    }).toString();
-                    const freshUser = await callApi('GET', `/api/users/user?${query}`);
+                    const freshUser = await callApi('GET', '/api/me');
                     currentUser.balance = freshUser.balance;
                     updateBalanceDisplay(freshUser.balance);
                     updateProfileUI();
@@ -503,7 +507,7 @@
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td><span class="inspect-tier-label ${tierMeta.className}">${labelText}</span></td>
+                    <td><span class="inspect-tier-label ${tierMeta.className}">${escapeHtml(labelText)}</span></td>
                     <td class="inspect-multiplier-cell">${formatInspectMultiplier(mult)}</td>
                     <td class="inspect-payout-cell">$${payoutDollars}</td>
                     <td class="inspect-chance-cell">${formatInspectChance(prob)}</td>
@@ -700,17 +704,17 @@
 
             card.innerHTML = `
                 <div class="case-image-slot">
-                    <img src="${crate.imageUrl}" alt="${displayLabel}" class="case-art-img" />
+                    <img src="${escapeHtml(safeImageUrl(crate.imageUrl))}" alt="${escapeHtml(displayLabel)}" class="case-art-img" />
                 </div>
                 <div class="case-bottom-footer">
-                    <div class="case-title">${displayLabel}</div>
+                    <div class="case-title">${escapeHtml(displayLabel)}</div>
                     <div class="case-buy-row">
                         <span class="case-price">$${totalPrice}</span>
                         <div class="case-action-group">
-                            <button type="button" class="case-view-btn" data-view-crate="${crate.slug}">View</button>
-                            <button type="button" class="case-qty-btn" data-qty-crate="${crate.slug}">x${selectedQty}</button>
-                            <button type="button" class="case-buy-btn" data-buy-crate="${crate.slug}">BUY</button>
-                            <button type="button" class="case-instant-open-btn" data-instant-open-crate="${crate.slug}">Instant Open</button>
+                            <button type="button" class="case-view-btn" data-view-crate="${escapeHtml(crate.slug)}">View</button>
+                            <button type="button" class="case-qty-btn" data-qty-crate="${escapeHtml(crate.slug)}">x${selectedQty}</button>
+                            <button type="button" class="case-buy-btn" data-buy-crate="${escapeHtml(crate.slug)}">BUY</button>
+                            <button type="button" class="case-instant-open-btn" data-instant-open-crate="${escapeHtml(crate.slug)}">Instant Open</button>
                         </div>
                     </div>
                 </div>
@@ -734,12 +738,10 @@
                 try {
                     const qty = getMarketplaceQuantity(crate.slug);
                     const cost = Number((crate.price * qty).toFixed(2));
-                    await callApi('POST', '/api/users/items/buy', {
-                        username: currentUser.username,
-                        password: currentUser.password,
+                    await callApi('POST', '/api/me/cases/buy', {
                         item: crate.slug,
                         quantity: qty
-                    });
+                    }, true, { 'Idempotency-Key': newIdempotencyKey() });
                     await syncBalanceFromGet();
                     await syncItemsFromGet();
                     await syncTopRichLeaderboard();
@@ -812,16 +814,16 @@
 
             card.innerHTML = `
                 <div class="case-image-slot">
-                    <img src="${crate.imageUrl}" alt="${displayLabel}" class="case-art-img" />
+                    <img src="${escapeHtml(safeImageUrl(crate.imageUrl))}" alt="${escapeHtml(displayLabel)}" class="case-art-img" />
                 </div>
                 <div class="case-bottom-footer">
-                    <div class="case-title">${displayLabel}</div>
+                    <div class="case-title">${escapeHtml(displayLabel)}</div>
                     <div class="case-buy-row">
                         <span class="case-count-inline">x${ownedCount}</span>
                         <div class="case-action-group">
-                            <button type="button" class="case-view-btn" data-view-crate="${crate.slug}">View</button>
-                            <button type="button" class="case-qty-btn" data-qty-crate="${crate.slug}">x${selectedQty}</button>
-                            <button type="button" class="case-buy-btn" data-open-crate="${crate.slug}">Open</button>
+                            <button type="button" class="case-view-btn" data-view-crate="${escapeHtml(crate.slug)}">View</button>
+                            <button type="button" class="case-qty-btn" data-qty-crate="${escapeHtml(crate.slug)}">x${selectedQty}</button>
+                            <button type="button" class="case-buy-btn" data-open-crate="${escapeHtml(crate.slug)}">Open</button>
                         </div>
                     </div>
                 </div>
@@ -1253,13 +1255,11 @@
 
         try {
             // 1. Backend execution: deduct crate(s) (or crate price * quantity on instant open) & select winning outcomes
-            const endpoint = isInstant ? '/api/cases/instant-open' : '/api/users/items/open';
+            const endpoint = isInstant ? '/api/me/cases/instant-open' : '/api/me/cases/open';
             const res = await callApi('POST', endpoint, {
-                username: currentUser.username,
-                password: currentUser.password,
                 item: crate.slug,
                 quantity: requestedQty
-            });
+            }, true, isInstant ? { 'Idempotency-Key': newIdempotencyKey() } : null);
 
             const paytable = Array.isArray(res.paytable) ? res.paytable : [];
             const rawSpins = Array.isArray(res.spins) && res.spins.length > 0
@@ -1631,7 +1631,8 @@
             depositCountdownTimerId = null;
         }
         activeDepositExpiresAtMs = null;
-        activeDepositTxHash = null;
+        // NOTE: do not clear activeDepositTxHash here. startDepositCountdown() calls this right after the session
+        // id was stored, which used to wipe it and made "Sent" post an empty hash.
     }
 
     function formatRemainingTime(totalSeconds) {
@@ -1655,6 +1656,7 @@
             if (remainingSec <= 0) {
                 depositTimerDisplay.textContent = '00:00';
                 stopDepositCountdown();
+                activeDepositTxHash = null;
                 showToast('15-minute deposit timer expired. Please start a new deposit.', true);
                 setWalletStep(1);
                 return;
@@ -1695,11 +1697,7 @@
     async function checkAndRestoreActiveDeposit(openModalIfActive = false) {
         if (!currentUser.username) return false;
         try {
-            const query = new URLSearchParams({
-                username: currentUser.username,
-                password: currentUser.password
-            }).toString();
-            const session = await callApi('GET', `/api/users/balance/deposit/active?${query}`, null, false);
+            const session = await callApi('GET', '/api/me/deposit/active', null, false);
             userHasPendingTransaction = Boolean(session && session.hasPendingTransaction);
             userHasApprovedDeposit = Boolean(session && session.hasApprovedDeposit);
             if (session && session.adminUsername && depositAdminUsernameText) {
@@ -1797,11 +1795,9 @@
                 showToast('Minimum deposit amount is $1.00 USDT', true);
                 return;
             }
-            const session = await callApi('POST', '/api/users/balance/deposit/start', {
-                username: currentUser.username,
-                password: currentUser.password,
-                amount
-            });
+            const session = await callApi('POST', '/api/me/deposit/start', {
+                amount: Number(amount.toFixed(2))
+            }, true, { 'Idempotency-Key': newIdempotencyKey() });
             activeDepositTxHash = session.txHash || null;
             step2DepositAmountText.textContent = `$${Number(session.amount).toFixed(2)}`;
             depositAddressText.textContent = session.address || 'UQCys13azAWTFuERWwjc_5sqKZxQEhJhbtGGaiyp2Sf55Hrg';
@@ -1817,12 +1813,9 @@
     depositSentBtn.addEventListener('click', async () => {
         try {
             const txHash = activeDepositTxHash;
-            await callApi('POST', '/api/users/balance/deposit/confirm', {
-                username: currentUser.username,
-                password: currentUser.password,
-                txHash
-            });
+            await callApi('POST', '/api/me/deposit/confirm', { txHash });
             stopDepositCountdown();
+            activeDepositTxHash = null;
             userHasPendingTransaction = true;
             await syncBalanceFromGet();
             setWalletStep(3);
@@ -1873,12 +1866,10 @@
                 showToast('Please enter your USDT (Ton) wallet address', true);
                 return;
             }
-            await callApi('POST', '/api/users/balance/withdraw', {
-                username: currentUser.username,
-                password: currentUser.password,
-                amount: pendingWithdrawAmount,
+            await callApi('POST', '/api/me/withdraw', {
+                amount: Number(Number(pendingWithdrawAmount).toFixed(2)),
                 walletAddress
-            });
+            }, true, { 'Idempotency-Key': newIdempotencyKey() });
             await syncBalanceFromGet();
             await syncTopRichLeaderboard();
             setWalletStep(3);
@@ -1896,37 +1887,10 @@
     // =========================================================================
     // TAB 3: PROFILE ACTIONS & PROMO FIELD
     // =========================================================================
+    // The promo field used to double as an admin-password entry. Admin access now lives on its own
+    // page (/admin-login.html: username + password + TOTP), so this field never talks to the server.
     async function handlePromoSubmit() {
-        const code = promoInput.value.trim();
-        promoFeedback.textContent = '';
-        try {
-            // Attempt admin login via POST /api/admin/login to issue the 4-hour ADMIN_SESSION cookie
-            const loginRes = await fetch('/api/admin/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ password: code })
-            });
-
-            if (loginRes.ok) {
-                saveSession();
-                sessionStorage.setItem('adminKey', code);
-                window.location.href = '/admin';
-                return;
-            }
-
-            // Fallback for promo verification
-            const res = await callApi('POST', '/api/users/promo', { promo: code }, false);
-            if (res && res.valid) {
-                saveSession();
-                sessionStorage.setItem('adminKey', code);
-                window.location.href = '/admin';
-                return;
-            }
-            promoFeedback.textContent = 'Promo is not found';
-        } catch (err) {
-            promoFeedback.textContent = 'Promo is not found';
-        }
+        promoFeedback.textContent = 'Promo is not found';
     }
 
     promoSubmitBtn.addEventListener('click', handlePromoSubmit);
@@ -1975,15 +1939,6 @@
                 return;
             }
 
-            if (currentPassword !== currentUser.password) {
-                if (currentPasswordInput) {
-                    currentPasswordInput.classList.add('input-error');
-                    currentPasswordInput.focus();
-                }
-                showToast('Current password does not match', true);
-                return;
-            }
-
             if (!newPassword || !newPassword.trim()) {
                 newPasswordInput.classList.add('input-error');
                 newPasswordInput.focus();
@@ -1991,14 +1946,11 @@
                 return;
             }
 
-            await callApi('POST', '/api/users/password', {
-                username: currentUser.username,
-                password: currentPassword,
-                newPassword
-            });
-            currentUser.password = newPassword;
-            authPassword.value = newPassword;
-            saveSession();
+            const changed = await callApi('POST', '/api/auth/password', { currentPassword, newPassword });
+            // All other sessions were revoked server-side; this one got a fresh CSRF token.
+            csrfToken = changed.csrfToken || csrfToken;
+            currentPasswordInput.value = '';
+            newPasswordInput.value = '';
             updateProfileUI();
             passwordModal.classList.remove('open');
             showToast('Password updated successfully');
@@ -2028,10 +1980,7 @@
     if (confirmLogoutBtn) {
         confirmLogoutBtn.addEventListener('click', async () => {
             try {
-                await callApi('POST', '/api/users/logout', {
-                    username: currentUser.username,
-                    password: currentUser.password
-                });
+                await callApi('POST', '/api/auth/logout', {});
                 closeLogoutModal();
                 stopDepositCountdown();
                 balanceModal.classList.remove('open');
@@ -2092,10 +2041,9 @@
             }
 
             try {
-                await callApi('POST', '/api/users/delete', {
-                    username: currentUser.username,
-                    password: currentUser.password
-                });
+                const confirmPassword = window.prompt('Enter your password to confirm account deletion');
+                if (!confirmPassword) return;
+                await callApi('POST', '/api/auth/delete', { password: confirmPassword });
                 closeDeleteAccountModal();
                 stopDepositCountdown();
                 balanceModal.classList.remove('open');
@@ -2114,20 +2062,13 @@
     // =========================================================================
     (async function restoreSessionIfPresent() {
         await loadAppConfig();
-        const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
-        if (!raw) return;
+        clearSession(); // also purges legacy storage from older builds
         try {
-            const saved = JSON.parse(raw);
-            if (saved && saved.username && saved.password) {
-                const query = new URLSearchParams({
-                    username: saved.username,
-                    password: saved.password
-                }).toString();
-                const user = await callApi('GET', `/api/users/user?${query}`, null, false);
-                await enterPlayerPortal(user, saved.password);
-            }
+            // The cookie (if any) authenticates this call; a 401 simply means "not logged in".
+            const me = await callApi('GET', '/api/auth/me', null, false);
+            await enterPlayerPortal(me);
         } catch (_) {
-            clearSession();
+            csrfToken = '';
         }
     })();
 })();

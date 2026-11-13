@@ -1,5 +1,6 @@
 # =============================================================================
 # LOCAL TEST CONFIGURATION (In-Memory H2 Database for Local Dev & JUnit 5 Tests)
+# JUnit tests inject their own admin credentials and limits from IntegrationTestBase.
 # =============================================================================
 server:
   port: ${SERVER_PORT:8080}
@@ -32,8 +33,14 @@ spring:
 
 slots:
   admin:
-    # Admin password: used by /api/users/promo and as the X-Admin-Key for /api/admin/**
-    password: ${ADMIN_PASSWORD:admin_new}
+    # No default credentials on purpose. To use /admin-login.html locally, set these three env vars
+    # (generate them with AdminCredentialsGenerator). JUnit tests do not need them.
+    username: ${ADMIN_USERNAME:}
+    password-hash: ${ADMIN_PASSWORD_HASH:}
+    totp-secret: ${ADMIN_TOTP_SECRET:}
+  cookie:
+    # Local dev runs on plain http. JUnit tests force this back to true (see IntegrationTestBase).
+    secure: false
   bankroll:
     initial-prize-pool: ${BANKROLL_INITIAL_PRIZE_POOL:0.0000}
 

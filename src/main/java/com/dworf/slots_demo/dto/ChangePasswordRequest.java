@@ -1,9 +1,8 @@
 package com.dworf.slots_demo.dto;
 
-public record ChangePasswordRequest(
-        String username,
-        String password,
-        String newPassword
-) {
+public record ChangePasswordRequest(String currentPassword, String newPassword) {
+    @Override
+    public String toString() {
+        return "ChangePasswordRequest[***]";
+    }
 }
-

@@ -1,147 +1,155 @@
 package com.dworf.slots_demo.controller;
 
-import com.dworf.slots_demo.config.AdminAuthInterceptor;
+import com.dworf.slots_demo.dto.AdminLoginRequest;
 import com.dworf.slots_demo.dto.AdminUserOverviewResponse;
+import com.dworf.slots_demo.dto.ApproveTransactionRequest;
 import com.dworf.slots_demo.dto.BankrollResponse;
+import com.dworf.slots_demo.dto.SessionResponse;
 import com.dworf.slots_demo.dto.TransactionResponse;
-import com.dworf.slots_demo.service.UserService;
+import com.dworf.slots_demo.entity.AuditLog;
+import com.dworf.slots_demo.repository.AuditLogRepository;
+import com.dworf.slots_demo.security.AuthInterceptor;
+import com.dworf.slots_demo.security.SessionCookies;
+import com.dworf.slots_demo.service.AdminAuthService;
+import com.dworf.slots_demo.service.AuditService;
+import com.dworf.slots_demo.service.CaseOpeningService;
+import com.dworf.slots_demo.service.ReconciliationService;
+import com.dworf.slots_demo.service.SessionService;
+import com.dworf.slots_demo.service.TransactionReviewService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.math.RoundingMode;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Admin endpoints and guarded view routes.
- * Protected by AdminAuthInterceptor (X-Admin-Key, Authorization: Bearer, or ADMIN_SESSION cookie).
- */
+/** Everything here (except login) is gated by AuthInterceptor: ADMIN session + CSRF token. */
 @RestController
 public class AdminController {
+    private final AdminAuthService adminAuth;
+    private final SessionService sessions;
+    private final SessionCookies cookies;
+    private final TransactionReviewService review;
+    private final CaseOpeningService caseOpeningService;
+    private final ReconciliationService reconciliation;
+    private final AuditService audit;
+    private final AuditLogRepository auditLog;
+    private final boolean allowBankrollReset;
 
-    private static final int COOKIE_MAX_AGE_SECONDS = 14400; // 4 hours
-
-    private final UserService userService;
-    private final AdminAuthInterceptor adminAuthInterceptor;
-
-    public AdminController(UserService userService, AdminAuthInterceptor adminAuthInterceptor) {
-        this.userService = userService;
-        this.adminAuthInterceptor = adminAuthInterceptor;
+    public AdminController(AdminAuthService adminAuth, SessionService sessions, SessionCookies cookies,
+                           TransactionReviewService review, CaseOpeningService caseOpeningService,
+                           ReconciliationService reconciliation, AuditService audit, AuditLogRepository auditLog,
+                           @Value("${slots.admin.allow-bankroll-reset:false}") boolean allowBankrollReset) {
+        this.adminAuth = adminAuth;
+        this.sessions = sessions;
+        this.cookies = cookies;
+        this.review = review;
+        this.caseOpeningService = caseOpeningService;
+        this.reconciliation = reconciliation;
+        this.audit = audit;
+        this.auditLog = auditLog;
+        this.allowBankrollReset = allowBankrollReset;
     }
 
-    // 0a) Guarded Admin UI View Route (GET /admin and GET /admin.html)
+    private static String actor(HttpServletRequest req) {
+        return AuthInterceptor.session(req).getAdminUsername();
+    }
+
     @GetMapping(value = {"/admin", "/admin.html"}, produces = MediaType.TEXT_HTML_VALUE)
-    public ResponseEntity<Resource> getAdminPage() {
-        Resource resource = new ClassPathResource("templates/admin.html");
-        if (!resource.exists()) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok()
-                .contentType(MediaType.TEXT_HTML)
-                .body(resource);
+    public ResponseEntity<Resource> page() {
+        Resource r = new ClassPathResource("templates/admin.html");
+        return r.exists() ? ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(r) : ResponseEntity.notFound().build();
     }
 
-    // 0b) Admin Login: exchanges secret key/password for a 4-hour HttpOnly SameSite=Strict cookie
-    @PostMapping("/api/admin/login")
-    public ResponseEntity<?> login(
-            @RequestBody(required = false) Map<String, String> body,
-            HttpServletRequest request
-    ) {
-        String provided = null;
-        if (body != null) {
-            provided = body.get("password");
-            if (provided == null || provided.isBlank()) {
-                provided = body.get("key");
-            }
-        }
-
-        if (!adminAuthInterceptor.isValid(provided)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "Unauthorized"));
-        }
-
-        ResponseCookie cookie = ResponseCookie.from(AdminAuthInterceptor.SESSION_COOKIE_NAME, provided)
-                .maxAge(COOKIE_MAX_AGE_SECONDS)
-                .path("/")
-                .httpOnly(true)
-                .sameSite("Strict")
-                .secure(request.isSecure())
-                .build();
-
+    @PostMapping("/api/admin/auth/login")
+    public ResponseEntity<SessionResponse> login(@RequestBody AdminLoginRequest body, HttpServletRequest req) {
+        if (body == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+        SessionService.Issued issued = adminAuth.login(body.username(), body.password(), body.totp(), req.getRemoteAddr());
+        Duration maxAge = Duration.between(Instant.now(), issued.session().getExpiresAt());
         return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(Map.of("status", "OK", "message", "Logged in"));
+                .header(HttpHeaders.SET_COOKIE, cookies.issue(issued.rawToken(), maxAge))
+                .body(new SessionResponse(issued.session().getAdminUsername(), "ADMIN", issued.session().getCsrfToken()));
     }
 
-    // 0c) Admin Logout: clears the ADMIN_SESSION cookie (Max-Age=0)
-    @PostMapping("/api/admin/logout")
-    public ResponseEntity<?> logout(HttpServletRequest request) {
-        ResponseCookie cookie = ResponseCookie.from(AdminAuthInterceptor.SESSION_COOKIE_NAME, "")
-                .maxAge(0)
-                .path("/")
-                .httpOnly(true)
-                .sameSite("Strict")
-                .secure(request.isSecure())
-                .build();
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(Map.of("status", "OK", "message", "Logged out"));
+    @PostMapping("/api/admin/auth/logout")
+    public ResponseEntity<Map<String, String>> logout(HttpServletRequest req) {
+        sessions.revoke(SessionCookies.read(req));
+        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookies.clear()).body(Map.of("status", "LOGGED_OUT"));
     }
 
-    // 1) Get all pending transactions across all users
+    @GetMapping("/api/admin/auth/me")
+    public SessionResponse me(HttpServletRequest req) {
+        var s = AuthInterceptor.session(req);
+        return new SessionResponse(s.getAdminUsername(), "ADMIN", s.getCsrfToken());
+    }
+
     @GetMapping("/api/admin/transactions/pending")
-    public List<TransactionResponse> getAllPendingTransactions() {
-        return userService.getAllPendingTransactions();
+    public List<TransactionResponse> pending() {
+        return review.pending();
     }
 
-    // 2) Approve a pending transaction by txHash
     @PostMapping("/api/admin/transactions/{txHash}/approve")
-    public TransactionResponse approveTransaction(@PathVariable String txHash) {
-        return userService.approveTransaction(txHash);
+    public TransactionResponse approve(@PathVariable String txHash,
+                                       @RequestBody(required = false) ApproveTransactionRequest body,
+                                       HttpServletRequest req) {
+        return review.approve(txHash, body == null ? null : body.externalTxHash(), actor(req), req.getRemoteAddr());
     }
 
-    // 3) Reject a pending transaction by txHash
     @PostMapping("/api/admin/transactions/{txHash}/reject")
-    public TransactionResponse rejectTransaction(@PathVariable String txHash) {
-        return userService.rejectTransaction(txHash);
+    public TransactionResponse reject(@PathVariable String txHash, HttpServletRequest req) {
+        return review.reject(txHash, actor(req), req.getRemoteAddr());
     }
 
-    // 4) Platform bankroll metrics - profit pool, floor buffer, house profit
     @GetMapping("/api/admin/bankroll")
-    public BankrollResponse getBankroll() {
-        return userService.getBankroll();
+    public BankrollResponse bankroll() {
+        return caseOpeningService.getBankroll();
     }
 
-    // 4b) Atomically reset platform bankroll metrics (Profit Pool & House Profit) to 0.00
+    @GetMapping("/api/admin/reconciliation")
+    public ReconciliationService.Report reconcile() {
+        return reconciliation.report();
+    }
+
+    @GetMapping("/api/admin/users/{username}")
+    public AdminUserOverviewResponse userOverview(@PathVariable String username) {
+        return review.overview(username);
+    }
+
+    @GetMapping("/api/admin/audit")
+    public List<AuditLog> auditTrail() {
+        return auditLog.findTop100ByOrderByIdDesc();
+    }
+
+    /**
+     * Zeroing the bankroll breaks the reconciliation invariant, so it is OFF by default
+     * (slots.admin.allow-bankroll-reset=false) and, when enabled, audited.
+     */
     @PostMapping("/api/admin/bankroll/reset")
-    public ResponseEntity<?> resetBankroll(@RequestBody(required = false) Map<String, String> body) {
-        String confirmation = body != null ? body.get("confirmation") : null;
-        if (!"RESET BANKROLL AS ADMIN".equals(confirmation)) {
+    public ResponseEntity<?> resetBankroll(@RequestBody(required = false) Map<String, String> body, HttpServletRequest req) {
+        if (!allowBankrollReset) {
+            audit.recordIndependent(actor(req), "BANKROLL_RESET_DENIED", null, null, req.getRemoteAddr());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Bankroll reset is disabled"));
+        }
+        if (body == null || !"RESET BANKROLL AS ADMIN".equals(body.get("confirmation"))) {
             return ResponseEntity.badRequest().body(Map.of("message", "Invalid confirmation phrase"));
         }
-        BankrollResponse bankroll = userService.resetBankroll();
-        return ResponseEntity.ok(Map.of(
-                "prizePool", bankroll.profitPool().setScale(2, RoundingMode.HALF_UP),
-                "profitPool", bankroll.profitPool().setScale(2, RoundingMode.HALF_UP),
-                "houseProfit", bankroll.houseProfit().setScale(2, RoundingMode.HALF_UP)
-        ));
-    }
-
-    // 5) Specific user's full overview (pending transactions, history)
-    @GetMapping("/api/admin/users/{username}")
-    public AdminUserOverviewResponse getAdminUserOverview(@PathVariable String username) {
-        return userService.getAdminUserOverview(username);
+        BankrollResponse before = caseOpeningService.getBankroll();
+        BankrollResponse after = caseOpeningService.resetBankroll();
+        audit.recordIndependent(actor(req), "BANKROLL_RESET", null,
+                "before pool=" + before.profitPool() + " house=" + before.houseProfit(), req.getRemoteAddr());
+        return ResponseEntity.ok(after);
     }
 }

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BADDROP admin sign-in</title>
+  <meta name="robots" content="noindex">
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0e0f13; color: #e8e8ee; font-family: system-ui, sans-serif; }
+    form { width: min(340px, 90vw); display: grid; gap: 12px; }
+    h1 { font-size: 1.1rem; margin: 0 0 4px; }
+    input, button { padding: 10px 12px; border-radius: 8px; border: 1px solid #333846; background: #171923; color: inherit; font-size: 1rem; }
+    button { background: #3b82f6; border-color: #3b82f6; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: default; }
+    #error { color: #ff6b6b; min-height: 1.2em; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <form id="adminLoginForm" autocomplete="off">
+    <h1>Admin sign-in</h1>
+    <input id="adminUsername" name="username" placeholder="Username" autocomplete="username" required>
+    <input id="adminPassword" name="password" type="password" placeholder="Password" autocomplete="current-password" required>
+    <input id="adminTotp" name="totp" inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" required>
+    <button id="adminLoginBtn" type="submit">Sign in</button>
+    <div id="error" role="alert"></div>
+  </form>
+  <script src="/admin-login.js"></script>
+</body>
+</html>

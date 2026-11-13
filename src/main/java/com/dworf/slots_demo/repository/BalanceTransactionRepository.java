@@ -41,6 +41,13 @@ public interface BalanceTransactionRepository extends JpaRepository<BalanceTrans
             @Param("now") Instant now
     );
 
-    void deleteByUser(User user);
+    /** Projection only: must not pull the User entity into the persistence context before it is locked. */
+    @Query("SELECT t.user.id FROM BalanceTransaction t WHERE t.txHash = :txHash")
+    Optional<Long> findOwnerIdByTxHash(@Param("txHash") String txHash);
+
+    boolean existsByExternalTxHash(String externalTxHash);
+
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM BalanceTransaction t WHERE t.type = :type AND t.status = :status")
+    java.math.BigDecimal sumAmount(@Param("type") TransactionType type, @Param("status") TransactionStatus status);
 }
 

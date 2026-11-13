@@ -55,8 +55,18 @@ public class BalanceTransaction {
     @Column
     private Instant expiresAt;
 
-    @Column(length = 256)
+    @Column(length = 64)
     private String walletAddress;
+
+    /** C8: on-chain tx hash entered by the admin when approving a deposit; unique so one chain tx cannot be credited twice. */
+    @Column(name = "external_tx_hash", unique = true, length = 128)
+    private String externalTxHash;
+
+    @Column(name = "decided_by", length = 64)
+    private String decidedBy;
+
+    @Column(name = "decided_at")
+    private Instant decidedAt;
 
     public BalanceTransaction() {
     }
@@ -152,5 +162,25 @@ public class BalanceTransaction {
     public void setWalletAddress(String walletAddress) {
         this.walletAddress = walletAddress;
     }
-}
 
+    public String getExternalTxHash() {
+        return externalTxHash;
+    }
+
+    public void setExternalTxHash(String externalTxHash) {
+        this.externalTxHash = externalTxHash;
+    }
+
+    public String getDecidedBy() {
+        return decidedBy;
+    }
+
+    public Instant getDecidedAt() {
+        return decidedAt;
+    }
+
+    public void markDecided(String by, Instant at) {
+        this.decidedBy = by;
+        this.decidedAt = at;
+    }
+}

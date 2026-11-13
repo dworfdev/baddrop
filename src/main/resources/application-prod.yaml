@@ -4,6 +4,13 @@
 # =============================================================================
 server:
   port: ${SERVER_PORT:8080}
+  # Use "native" ONLY when the app sits behind your own reverse proxy (nginx/Caddy/Cloudflare) that overwrites
+  # X-Forwarded-For. Without a proxy, "native" lets any client fake its IP and dodge the rate limiter.
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:none}
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
 
 spring:
   application:
@@ -36,11 +43,21 @@ spring:
 
 slots:
   admin:
-    # Admin password: used by /api/users/promo and as the X-Admin-Key for /api/admin/**.
-    # MUST be set via ADMIN_PASSWORD in prod; empty means the whole admin area answers 401.
-    password: ${ADMIN_PASSWORD:}
+    # Admin login = username + password + TOTP code. Empty values mean admin login is DISABLED (fail-closed).
+    username: ${ADMIN_USERNAME:}
+    # BCrypt HASH of the admin password, not the password itself (generate with AdminCredentialsGenerator).
+    password-hash: ${ADMIN_PASSWORD_HASH:}
+    # Base32 TOTP secret for the authenticator app (generate with AdminCredentialsGenerator).
+    totp-secret: ${ADMIN_TOTP_SECRET:}
+    # Zeroing the bankroll breaks the reconciliation books. Keep false.
+    allow-bankroll-reset: false
+  cookie:
+    secure: ${COOKIE_SECURE:true}
   bankroll:
     initial-prize-pool: ${BANKROLL_INITIAL_PRIZE_POOL:0.0000}
+  catalog:
+    # true = refuse to start when a case has RTP above 93%; false = only log a warning
+    enforce-rtp-cap: ${ENFORCE_RTP_CAP:false}
 
 app:
   deposit:

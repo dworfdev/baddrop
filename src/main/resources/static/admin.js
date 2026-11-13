@@ -1,5 +1,6 @@
 (() => {
-    const ADMIN_KEY_STORAGE = 'adminKey';
+    // Admin auth = HttpOnly session cookie (set by /admin-login.html). Only the CSRF token lives in JS memory.
+    let csrfToken = '';
     let selectedUsername = null;
 
     const userSearchInput = document.getElementById('userSearchInput');
@@ -45,12 +46,14 @@
     async function callApi(method, url, body = null) {
         const options = {
             method,
-            credentials: 'include',
+            credentials: 'same-origin',
             headers: {
-                'Accept': 'application/json',
-                'X-Admin-Key': sessionStorage.getItem(ADMIN_KEY_STORAGE) || ''
+                'Accept': 'application/json'
             }
         };
+        if (method !== 'GET' && csrfToken) {
+            options.headers['X-CSRF-Token'] = csrfToken;
+        }
         if (body !== null) {
             options.headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(body);
@@ -65,9 +68,8 @@
         }
 
         if (response.status === 401) {
-            sessionStorage.removeItem(ADMIN_KEY_STORAGE);
-            showToast('Admin access denied', true);
-            setTimeout(() => { window.location.href = '/'; }, 800);
+            showToast('Admin session expired', true);
+            setTimeout(() => { window.location.href = '/admin-login.html'; }, 800);
             throw new Error('Unauthorized');
         }
 
@@ -181,7 +183,7 @@
                 <div class="tx-info">
                     <div class="tx-title">
                         ${showUsernameLink
-                ? `<span class="tx-user-link" data-open-user="${tx.username}" title="Click to open ${tx.username}">${tx.username}</span>`
+                ? `<span class="tx-user-link" data-open-user></span>`
                 : ''
             }
                         <span class="tx-badge ${typeClass}">${tx.type}</span>
@@ -203,6 +205,13 @@
                     <button type="button" class="btn-reject" data-reject>REJECT</button>
                 </div>
             `;
+
+            const userLabel = card.querySelector('[data-open-user]');
+            if (userLabel) {
+                // textContent, never innerHTML: usernames are user-controlled data
+                userLabel.textContent = tx.username;
+                userLabel.title = 'Click to open ' + tx.username;
+            }
 
             const walletBox = card.querySelector('[data-copy-wallet]');
             if (walletBox) {
@@ -239,7 +248,18 @@
 
             card.querySelector('[data-approve]').addEventListener('click', async () => {
                 try {
-                    await callApi('POST', `/api/admin/transactions/${tx.txHash}/approve`);
+                    let externalTxHash = null;
+                    if (tx.type === 'DEPOSIT') {
+                        externalTxHash = window.prompt('Paste the ON-CHAIN transaction hash you verified for this deposit ($' + Number(tx.amount).toFixed(2) + ')');
+                        if (!externalTxHash || !externalTxHash.trim()) {
+                            showToast('On-chain tx hash is required to approve a deposit', true);
+                            return;
+                        }
+                    } else {
+                        externalTxHash = window.prompt('Payout tx hash (optional)') || null;
+                    }
+                    await callApi('POST', `/api/admin/transactions/${encodeURIComponent(tx.txHash)}/approve`,
+                        { externalTxHash: externalTxHash ? externalTxHash.trim() : null });
                     showToast(`Approved ${tx.type} ($${Number(tx.amount).toFixed(2)}) for ${tx.username}`);
                     if (selectedUsername) {
                         await openSpecificUser(selectedUsername);
@@ -251,7 +271,7 @@
 
             card.querySelector('[data-reject]').addEventListener('click', async () => {
                 try {
-                    await callApi('POST', `/api/admin/transactions/${tx.txHash}/reject`);
+                    await callApi('POST', `/api/admin/transactions/${encodeURIComponent(tx.txHash)}/reject`);
                     showToast(`Rejected ${tx.type} ($${Number(tx.amount).toFixed(2)}) for ${tx.username}`);
                     if (selectedUsername) {
                         await openSpecificUser(selectedUsername);
@@ -400,12 +420,8 @@
     // 3) Exit button - calls POST /api/admin/logout, leaves admin page and returns to logged in user page
     exitAdminBtn.addEventListener('click', async () => {
         try {
-            await fetch('/api/admin/logout', {
-                method: 'POST',
-                credentials: 'include'
-            });
+            await callApi('POST', '/api/admin/auth/logout', {});
         } catch (_) {}
-        sessionStorage.removeItem(ADMIN_KEY_STORAGE);
         window.location.href = '/';
     });
 
@@ -446,6 +462,14 @@
         });
     }
 
-    // Initial load: bankroll metrics + default view with all users' pending transactions
-    refreshDashboard();
+    // Initial load: fetch the CSRF token for this admin session, then bankroll metrics + pending transactions
+    (async function init() {
+        try {
+            const me = await callApi('GET', '/api/admin/auth/me');
+            csrfToken = me.csrfToken || '';
+        } catch (_) {
+            return;
+        }
+        refreshDashboard();
+    })();
 })();

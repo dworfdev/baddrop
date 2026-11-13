@@ -5,6 +5,9 @@ import com.dworf.slots_demo.repository.CaseRepository;
 import com.dworf.slots_demo.service.BankrollSplit;
 import com.dworf.slots_demo.service.CaseOpenerEngine;
 import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -38,9 +41,14 @@ public class CaseInitialCatalogConfig {
 
     private final CaseRepository caseRepository;
     private final CaseOpenerEngine caseOpenerEngine;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private static final Logger log = LoggerFactory.getLogger(CaseInitialCatalogConfig.class);
 
-    public CaseInitialCatalogConfig(CaseRepository caseRepository, CaseOpenerEngine caseOpenerEngine) {
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final boolean enforceRtpCap;
+
+    public CaseInitialCatalogConfig(CaseRepository caseRepository, CaseOpenerEngine caseOpenerEngine,
+                                    @Value("${slots.catalog.enforce-rtp-cap:false}") boolean enforceRtpCap) {
+        this.enforceRtpCap = enforceRtpCap;
         this.caseRepository = caseRepository;
         this.caseOpenerEngine = caseOpenerEngine;
     }
@@ -79,6 +87,15 @@ public class CaseInitialCatalogConfig {
             List<CaseOpenerEngine.Outcome> outcomes = caseOpenerEngine.toOutcomes(seed.price(), seed.paytable());
             if (!caseOpenerEngine.validateMathematics(seed.slug(), seed.price(), outcomes)) {
                 throw new IllegalStateException("Mathematical validation failed for initial case: " + seed.slug());
+            }
+            // H12/H13: with a 7% house cut the pool can only stay solvent if RTP <= 93%. Warn by default, refuse to start when enforced.
+            double rtp = caseOpenerEngine.calculateStats(seed.slug(), seed.price(), outcomes).rtpPercent();
+            if (!CaseOpenerEngine.rtpWithinHouseCap(rtp)) {
+                String msg = "Case " + seed.slug() + " has RTP " + rtp + "% which exceeds the " + CaseOpenerEngine.MAX_RTP_PERCENT + "% cap";
+                if (enforceRtpCap) {
+                    throw new IllegalStateException(msg);
+                }
+                log.warn("{} (set slots.catalog.enforce-rtp-cap=true to refuse such cases)", msg);
             }
 
             var existingOpt = caseRepository.findBySlug(seed.slug());

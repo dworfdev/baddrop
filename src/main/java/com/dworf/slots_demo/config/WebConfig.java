@@ -1,5 +1,6 @@
 package com.dworf.slots_demo.config;
 
+import com.dworf.slots_demo.security.AuthInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -7,16 +8,14 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    private final AdminAuthInterceptor adminAuthInterceptor;
+    private final AuthInterceptor authInterceptor;
 
-    public WebConfig(AdminAuthInterceptor adminAuthInterceptor) {
-        this.adminAuthInterceptor = adminAuthInterceptor;
+    public WebConfig(AuthInterceptor authInterceptor) {
+        this.authInterceptor = authInterceptor;
     }
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(adminAuthInterceptor)
-                .addPathPatterns("/api/admin/**", "/admin", "/admin.html")
-                .excludePathPatterns("/api/admin/login", "/api/admin/logout");
+        registry.addInterceptor(authInterceptor).addPathPatterns("/api", "/api/**", "/admin", "/admin.html");
     }
 }

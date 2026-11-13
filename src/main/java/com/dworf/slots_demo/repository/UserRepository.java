@@ -13,12 +13,22 @@ import java.util.Optional;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
-    Optional<User> findByUsername(String username);
+
+    /** Includes soft-deleted rows: a deleted username stays reserved. */
+    boolean existsByUsername(String username);
+
+    Optional<User> findByUsernameAndDeletedAtIsNull(String username);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT u FROM User u WHERE u.username = :username")
-    Optional<User> findByUsernameForUpdate(@Param("username") String username);
+    @Query("SELECT u FROM User u WHERE u.id = :id AND u.deletedAt IS NULL")
+    Optional<User> findActiveByIdForUpdate(@Param("id") Long id);
 
-    boolean existsByUsername(String username);
-    List<User> findTop3ByOrderByBalanceDesc();
+    @Query("SELECT u FROM User u WHERE u.id = :id AND u.deletedAt IS NULL")
+    Optional<User> findActiveById(@Param("id") Long id);
+
+    List<User> findTop3ByDeletedAtIsNullOrderByBalanceDesc();
+
+    /** Includes soft-deleted users: their balance is still part of the books. */
+    @Query("SELECT COALESCE(SUM(u.balance), 0) FROM User u")
+    java.math.BigDecimal sumAllBalances();
 }
