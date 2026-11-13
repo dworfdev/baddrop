@@ -725,6 +725,7 @@
             });
 
             card.querySelector('[data-instant-open-crate]').addEventListener('click', () => {
+                warmUpOutcomeBgVideo();
                 const qty = getMarketplaceQuantity(crate.slug);
                 startInteractiveCaseOpening(crate, { instant: true, quantity: qty });
             });
@@ -835,6 +836,7 @@
             });
 
             card.querySelector('[data-open-crate]').addEventListener('click', () => {
+                warmUpOutcomeBgVideo();
                 const qty = getInventoryQuantity(crate.slug, ownedCount);
                 startInteractiveCaseOpening(crate, { instant: false, quantity: qty });
             });
@@ -1003,11 +1005,56 @@
         }
     };
 
-    // Preload all 6 outcome title graphics so entrance animations start without network delay
+    // Preload and decode all 6 outcome title graphics into memory so switching spins requires zero network fetch
+    const preloadedOutcomeTitleImages = {};
     Object.values(OUTCOME_TIER_META).forEach(meta => {
         const preloadImg = new Image();
+        preloadImg.decoding = 'async';
         preloadImg.src = meta.image;
+        if (typeof preloadImg.decode === 'function') {
+            preloadImg.decode().catch(() => {});
+        }
+        preloadedOutcomeTitleImages[meta.image] = preloadImg;
     });
+
+    let isOutcomeVideoWarmedUp = false;
+
+    if (caseOutcomeBgVideo) {
+        caseOutcomeBgVideo.muted = true;
+        caseOutcomeBgVideo.defaultMuted = true;
+        caseOutcomeBgVideo.playsInline = true;
+        caseOutcomeBgVideo.loop = false;
+        try {
+            caseOutcomeBgVideo.load();
+        } catch (_) {}
+    }
+
+    function warmUpOutcomeBgVideo() {
+        if (!caseOutcomeBgVideo || isOutcomeVideoWarmedUp) return;
+        if (caseOutcomeModal && caseOutcomeModal.classList.contains('open')) return;
+        isOutcomeVideoWarmedUp = true;
+        caseOutcomeBgVideo.muted = true;
+        caseOutcomeBgVideo.defaultMuted = true;
+        caseOutcomeBgVideo.playsInline = true;
+        caseOutcomeBgVideo.loop = false;
+        try {
+            const playPromise = caseOutcomeBgVideo.play();
+            if (playPromise && typeof playPromise.then === 'function') {
+                playPromise
+                    .then(() => {
+                        if (!caseOutcomeModal || !caseOutcomeModal.classList.contains('open')) {
+                            caseOutcomeBgVideo.pause();
+                            caseOutcomeBgVideo.currentTime = 0;
+                        }
+                    })
+                    .catch(() => {
+                        isOutcomeVideoWarmedUp = false;
+                    });
+            }
+        } catch (_) {
+            isOutcomeVideoWarmedUp = false;
+        }
+    }
 
     function resolveOutcomeTierMetaFromSpin(spin) {
         if (!spin) return OUTCOME_TIER_META['COMMON SCRAP'];
@@ -1157,6 +1204,8 @@
             caseOutcomeBgVideo.classList.remove('active', 'fade-out');
         }
         if (caseOutcomeTitleImg) {
+            caseOutcomeTitleImg.style.visibility = 'hidden';
+            caseOutcomeTitleImg.removeAttribute('src');
             caseOutcomeTitleImg.classList.remove(
                 'anim-low-tier',
                 'anim-high-tier',
@@ -1199,6 +1248,7 @@
         isResolvingCaseOpen = true;
         setSpinningLockState(true);
         initSlotTickAudio();
+        warmUpOutcomeBgVideo();
         closeCaseOutcomeOverlay();
 
         try {
@@ -1439,9 +1489,11 @@
                 const isJackpotHighlight = anyJackpot || highestTierMeta.rank === 6;
 
                 if (caseOutcomeTitleImg) {
-                    caseOutcomeTitleImg.src = highestTierMeta.image;
+                    caseOutcomeTitleImg.style.visibility = 'hidden';
+                    caseOutcomeTitleImg.removeAttribute('src');
                     caseOutcomeTitleImg.alt = highestTierMeta.label;
                     caseOutcomeTitleImg.classList.add(highestTierMeta.className);
+                    caseOutcomeTitleImg.src = highestTierMeta.image;
                 }
 
                 if (caseOutcomeUsdtAmount) {
@@ -1458,6 +1510,7 @@
                 if (caseOutcomeBgVideo) {
                     caseOutcomeBgVideo.loop = false;
                     if (highestTierMeta.isHighTier) {
+                        isOutcomeVideoWarmedUp = true;
                         caseOutcomeBgVideo.classList.remove('fade-out');
                         caseOutcomeBgVideo.classList.add('active');
                         try {
@@ -1476,10 +1529,19 @@
                 }
 
                 if (caseOutcomeTitleImg) {
-                    void caseOutcomeTitleImg.offsetWidth;
-                    caseOutcomeTitleImg.classList.add(
-                        highestTierMeta.isHighTier ? 'anim-high-tier' : 'anim-low-tier'
-                    );
+                    const revealDecodedTitle = () => {
+                        if (!caseOutcomeModal.classList.contains('open')) return;
+                        caseOutcomeTitleImg.style.visibility = 'visible';
+                        void caseOutcomeTitleImg.offsetWidth;
+                        caseOutcomeTitleImg.classList.add(
+                            highestTierMeta.isHighTier ? 'anim-high-tier' : 'anim-low-tier'
+                        );
+                    };
+                    if (typeof caseOutcomeTitleImg.decode === 'function') {
+                        caseOutcomeTitleImg.decode().then(revealDecodedTitle).catch(revealDecodedTitle);
+                    } else {
+                        revealDecodedTitle();
+                    }
                 }
 
                 outcomeStage2TimeoutId = setTimeout(() => {

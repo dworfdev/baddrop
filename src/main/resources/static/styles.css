@@ -1079,15 +1079,15 @@ body {
     pointer-events: none;
     mix-blend-mode: screen;
     opacity: 0;
+    visibility: hidden;
     filter: contrast(1.15);
     -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
     mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
-    display: none;
     transition: opacity 400ms ease-out;
 }
 
 .case-outcome-bg-video.active {
-    display: block;
+    visibility: visible;
     opacity: 0.4;
 }
 
