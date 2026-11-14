@@ -137,6 +137,9 @@
 
     const caseOutcomeModal = document.getElementById('caseOutcomeModal');
     const caseOutcomeBgVideo = document.getElementById('caseOutcomeBgVideo');
+    const caseOutcomeFxVideo = document.getElementById('caseOutcomeFxVideo');
+    // cash rain (SMALL WIN / NICE WIN / TOP PRIZE) and the yellow explosion (TOP PRIZE only); neither loops
+    const outcomeVideos = [caseOutcomeBgVideo, caseOutcomeFxVideo].filter(Boolean);
     const caseOutcomeTitleImg = document.getElementById('caseOutcomeTitleImg');
     const caseOutcomeUsdtAmount = document.getElementById('caseOutcomeUsdtAmount');
 
@@ -732,9 +735,11 @@
                     <img src="${escapeHtml(safeImageUrl(crate.imageUrl))}" alt="${escapeHtml(displayLabel)}" class="case-art-img" />
                 </div>
                 <div class="case-bottom-footer">
-                    <div class="case-title">${escapeHtml(displayLabel)}</div>
-                    <div class="case-buy-row">
+                    <div class="case-title-row">
+                        <div class="case-title">${escapeHtml(displayLabel)}</div>
                         <span class="case-price">$${totalPrice}</span>
+                    </div>
+                    <div class="case-buy-row">
                         <div class="case-action-group">
                             <button type="button" class="case-view-btn" data-view-crate="${escapeHtml(crate.slug)}">View</button>
                             <button type="button" class="case-qty-btn" data-qty-crate="${escapeHtml(crate.slug)}">x${selectedQty}</button>
@@ -842,9 +847,11 @@
                     <img src="${escapeHtml(safeImageUrl(crate.imageUrl))}" alt="${escapeHtml(displayLabel)}" class="case-art-img" />
                 </div>
                 <div class="case-bottom-footer">
-                    <div class="case-title">${escapeHtml(displayLabel)}</div>
-                    <div class="case-buy-row">
+                    <div class="case-title-row">
+                        <div class="case-title">${escapeHtml(displayLabel)}</div>
                         <span class="case-count-inline">x${ownedCount}</span>
+                    </div>
+                    <div class="case-buy-row">
                         <div class="case-action-group">
                             <button type="button" class="case-view-btn" data-view-crate="${escapeHtml(crate.slug)}">View</button>
                             <button type="button" class="case-qty-btn" data-qty-crate="${escapeHtml(crate.slug)}">x${selectedQty}</button>
@@ -1046,41 +1053,45 @@
 
     let isOutcomeVideoWarmedUp = false;
 
-    if (caseOutcomeBgVideo) {
-        caseOutcomeBgVideo.muted = true;
-        caseOutcomeBgVideo.defaultMuted = true;
-        caseOutcomeBgVideo.playsInline = true;
-        caseOutcomeBgVideo.loop = false;
-        try {
-            caseOutcomeBgVideo.load();
-        } catch (_) {}
+    function prepareOutcomeVideo(v) {
+        v.muted = true;
+        v.defaultMuted = true;
+        v.playsInline = true;
+        v.loop = false;
     }
 
+    outcomeVideos.forEach(v => {
+        prepareOutcomeVideo(v);
+        try {
+            v.load();
+        } catch (_) {}
+    });
+
+    // Unlocks muted autoplay on mobile WebViews: play once on a user gesture, then rewind and pause.
     function warmUpOutcomeBgVideo() {
-        if (!caseOutcomeBgVideo || isOutcomeVideoWarmedUp) return;
+        if (!outcomeVideos.length || isOutcomeVideoWarmedUp) return;
         if (caseOutcomeModal && caseOutcomeModal.classList.contains('open')) return;
         isOutcomeVideoWarmedUp = true;
-        caseOutcomeBgVideo.muted = true;
-        caseOutcomeBgVideo.defaultMuted = true;
-        caseOutcomeBgVideo.playsInline = true;
-        caseOutcomeBgVideo.loop = false;
-        try {
-            const playPromise = caseOutcomeBgVideo.play();
-            if (playPromise && typeof playPromise.then === 'function') {
-                playPromise
-                    .then(() => {
-                        if (!caseOutcomeModal || !caseOutcomeModal.classList.contains('open')) {
-                            caseOutcomeBgVideo.pause();
-                            caseOutcomeBgVideo.currentTime = 0;
-                        }
-                    })
-                    .catch(() => {
-                        isOutcomeVideoWarmedUp = false;
-                    });
+        outcomeVideos.forEach(v => {
+            prepareOutcomeVideo(v);
+            try {
+                const playPromise = v.play();
+                if (playPromise && typeof playPromise.then === 'function') {
+                    playPromise
+                        .then(() => {
+                            if (!caseOutcomeModal || !caseOutcomeModal.classList.contains('open')) {
+                                v.pause();
+                                v.currentTime = 0;
+                            }
+                        })
+                        .catch(() => {
+                            isOutcomeVideoWarmedUp = false;
+                        });
+                }
+            } catch (_) {
+                isOutcomeVideoWarmedUp = false;
             }
-        } catch (_) {
-            isOutcomeVideoWarmedUp = false;
-        }
+        });
     }
 
     function resolveOutcomeTierMetaFromSpin(spin) {
@@ -1212,6 +1223,7 @@
                 if ('disabled' in el) el.disabled = false;
             }
         });
+        if (!locked && hasActiveDeposit && profileWithdrawBtn) profileWithdrawBtn.disabled = true;
     }
 
     let activeSkipSpinHandler = null;
@@ -1223,13 +1235,13 @@
             clearTimeout(outcomeStage2TimeoutId);
             outcomeStage2TimeoutId = null;
         }
-        if (caseOutcomeBgVideo) {
+        outcomeVideos.forEach(v => {
             try {
-                caseOutcomeBgVideo.pause();
-                caseOutcomeBgVideo.currentTime = 0;
+                v.pause();
+                v.currentTime = 0;
             } catch (_) {}
-            caseOutcomeBgVideo.classList.remove('active', 'fade-out');
-        }
+            v.classList.remove('active', 'fade-out');
+        });
         if (caseOutcomeTitleImg) {
             caseOutcomeTitleImg.style.visibility = 'hidden';
             caseOutcomeTitleImg.removeAttribute('src');
@@ -1245,7 +1257,7 @@
             );
         }
         if (caseOutcomeUsdtAmount) {
-            caseOutcomeUsdtAmount.classList.remove('anim-payout-reveal', 'jackpot');
+            caseOutcomeUsdtAmount.classList.remove('anim-payout-reveal', 'jackpot', 'tier-floor', 'tier-common', 'tier-even', 'tier-profit', 'tier-rare', 'tier-jackpot');
         }
     }
 
@@ -1526,30 +1538,31 @@
                         ? `+$${totalWonAmount.toFixed(2)} USDT`
                         : `$0.00 USDT`;
                     caseOutcomeUsdtAmount.classList.toggle('jackpot', isJackpotHighlight);
+                    caseOutcomeUsdtAmount.classList.add(highestTierMeta.className);
                 }
 
                 // 750ms interaction lock so spamming 'Skip' does not immediately dismiss the reward screen
                 outcomeDismissUnlockAtMs = performance.now() + 750;
                 caseOutcomeModal.classList.add('open');
 
-                if (caseOutcomeBgVideo) {
-                    caseOutcomeBgVideo.loop = false;
-                    if (highestTierMeta.isHighTier) {
-                        isOutcomeVideoWarmedUp = true;
-                        caseOutcomeBgVideo.classList.remove('fade-out');
-                        caseOutcomeBgVideo.classList.add('active');
-                        try {
-                            caseOutcomeBgVideo.currentTime = 0;
-                        } catch (_) {}
-                        const playPromise = caseOutcomeBgVideo.play();
-                        if (playPromise && typeof playPromise.catch === 'function') {
-                            playPromise.catch(() => {});
-                        }
-                    } else {
-                        try {
-                            caseOutcomeBgVideo.pause();
-                        } catch (_) {}
-                        caseOutcomeBgVideo.classList.remove('active', 'fade-out');
+                const playOutcomeVideo = (v) => {
+                    if (!v) return;
+                    v.loop = false;
+                    v.classList.remove('fade-out');
+                    v.classList.add('active');
+                    try {
+                        v.currentTime = 0;
+                    } catch (_) {}
+                    const playPromise = v.play();
+                    if (playPromise && typeof playPromise.catch === 'function') {
+                        playPromise.catch(() => {});
+                    }
+                };
+                if (highestTierMeta.isHighTier) {
+                    isOutcomeVideoWarmedUp = true;
+                    playOutcomeVideo(caseOutcomeBgVideo);              // cash rain for SMALL WIN / NICE WIN / TOP PRIZE
+                    if (isJackpotHighlight) {
+                        playOutcomeVideo(caseOutcomeFxVideo);          // plus the yellow explosion on the jackpot
                     }
                 }
 
@@ -1588,24 +1601,24 @@
         }
     }
 
-    if (caseOutcomeBgVideo) {
-        caseOutcomeBgVideo.loop = false;
-        caseOutcomeBgVideo.addEventListener('timeupdate', () => {
-            if (!caseOutcomeBgVideo.classList.contains('active')) return;
-            const dur = caseOutcomeBgVideo.duration;
-            if (Number.isFinite(dur) && dur > 0 && dur - caseOutcomeBgVideo.currentTime <= 0.45) {
-                caseOutcomeBgVideo.classList.add('fade-out');
+    outcomeVideos.forEach(v => {
+        v.loop = false;
+        v.addEventListener('timeupdate', () => {
+            if (!v.classList.contains('active')) return;
+            const dur = v.duration;
+            if (Number.isFinite(dur) && dur > 0 && dur - v.currentTime <= 0.45) {
+                v.classList.add('fade-out');
             }
         });
-        caseOutcomeBgVideo.addEventListener('ended', () => {
-            caseOutcomeBgVideo.classList.add('fade-out');
+        v.addEventListener('ended', () => {
+            v.classList.add('fade-out');
             setTimeout(() => {
-                if (caseOutcomeBgVideo.classList.contains('fade-out')) {
-                    caseOutcomeBgVideo.classList.remove('active', 'fade-out');
+                if (v.classList.contains('fade-out')) {
+                    v.classList.remove('active', 'fade-out');
                 }
             }, 400);
         });
-    }
+    });
 
     if (caseOutcomeModal) {
         const handleOutcomeDismiss = (e) => {

@@ -8,12 +8,97 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;800&display=swap"
             rel="stylesheet">
     <link rel="stylesheet" href="/styles.css?v=38" />
     <style>
         /* class rules like .auth-field / .auth-equal-btn set display and would otherwise defeat the hidden attribute */
         [hidden] { display: none !important; }
+        /* one typeface for the whole app: Work Sans (SIL OFL 1.1, free for commercial use) */
+        :root { --font-sans: 'Work Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; --font-mono: 'Work Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+        body, button, input, select, textarea { font-family: var(--font-sans); font-variant-numeric: tabular-nums lining-nums; }
+        /* jackpot explosion sits on top of the cash rain and is brighter than the 0.4 rain overlay */
+        .case-outcome-bg-video.case-outcome-fx-video.active { opacity: 0.95; }
+
+        /* case cards: name + price on one line, buttons below */
+        .case-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; }
+        .case-title-row .case-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .case-title-row .case-price, .case-title-row .case-count-inline { flex-shrink: 0; }
+        .case-buy-row .case-action-group { width: 100%; flex-wrap: nowrap; justify-content: space-between; }
+        .case-buy-row .case-action-group > button { flex: 0 1 auto; padding-left: 12px; padding-right: 12px; }
+        .case-buy-row .case-action-group > .case-buy-btn, .case-buy-row .case-action-group > .case-instant-open-btn { flex: 1 1 auto; }
+        /* flares sit BEHIND the title graphic and the amount */
+        .case-outcome-title-img, .case-outcome-amount { position: relative; z-index: 1; }
+        .outcome-flare { z-index: 0; }
+        /* win screen hierarchy: big tier graphic, smaller amount on its own plate */
+        .case-outcome-stage { gap: 22px; }
+        .case-outcome-title-img { width: min(94vw, 380px); }
+        .case-outcome-amount { font-size: 27px; padding: 0; }
+        .outcome-plate {
+            --pc: #22C55E;
+            position: absolute; z-index: 0; inset: -9px -20px; border-radius: 9999px; pointer-events: none; opacity: 0;
+            background: linear-gradient(180deg, rgba(22,27,38,.88), rgba(10,14,23,.94));
+            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 45%, transparent), 0 6px 18px rgba(0,0,0,.5);
+        }
+        .case-outcome-amount.anim-payout-reveal ~ .outcome-plate { animation: outcomePlateIn 450ms cubic-bezier(.22,1,.36,1) forwards; }
+        .tier-floor ~ .outcome-plate  { --pc: #94A3B8; }
+        .tier-common ~ .outcome-plate { --pc: #38BDF8; }
+        .tier-even ~ .outcome-plate   { --pc: #14B8A6; }
+        .tier-profit ~ .outcome-plate { --pc: #22C55E; }
+        .tier-rare ~ .outcome-plate   { --pc: #A855F7; }
+        .tier-jackpot ~ .outcome-plate, .case-outcome-amount.jackpot ~ .outcome-plate { --pc: #FACC15; }
+        @keyframes outcomePlateIn { from { opacity: 0; transform: scale(.65); } to { opacity: 1; transform: scale(1); } }
+        /* ===== Win screen: amount typography, tier colours, full-width horizontal flares ===== */
+        #caseOutcomeModal { overflow: hidden; }
+        .outcome-line { position: relative; display: flex; justify-content: center; align-items: center; }
+        .case-outcome-amount {
+            --amt: #22C55E;
+            font-family: var(--font-sans);
+            font-size: 38px; font-weight: 800; letter-spacing: -0.01em;
+            font-variant-numeric: tabular-nums lining-nums;
+            color: var(--amt);
+            background: linear-gradient(180deg, #fff 0%, var(--amt) 62%);
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: none;
+            filter: drop-shadow(0 0 14px var(--amt)) drop-shadow(0 3px 8px rgba(0,0,0,.7));
+        }
+        .case-outcome-amount.tier-floor  { --amt: #94A3B8; }
+        .case-outcome-amount.tier-common { --amt: #38BDF8; }
+        .case-outcome-amount.tier-even   { --amt: #14B8A6; }
+        .case-outcome-amount.tier-profit { --amt: #22C55E; }
+        .case-outcome-amount.tier-rare   { --amt: #A855F7; }
+        .case-outcome-amount.tier-jackpot, .case-outcome-amount.jackpot { --amt: #FACC15; color: var(--amt); text-shadow: none; }
+
+        .outcome-flare {
+            --fc: #94A3B8; --fi: .45;
+            position: absolute; left: 50%; top: 50%; width: 100vw; height: 0;
+            transform: translate(-50%, -50%); pointer-events: none; opacity: 0;
+        }
+        .outcome-flare::before { /* thin bright core line */
+            content: ''; position: absolute; left: 0; right: 0; top: -1px; height: 2px;
+            background: linear-gradient(90deg, transparent 0%, var(--fc) 22%, #fff 50%, var(--fc) 78%, transparent 100%);
+            box-shadow: 0 0 10px var(--fc);
+        }
+        .outcome-flare::after { /* soft anamorphic glow */
+            content: ''; position: absolute; left: 6%; right: 6%; top: -22px; height: 44px; border-radius: 50%;
+            background: radial-gradient(ellipse at center, var(--fc) 0%, transparent 68%);
+            opacity: .45; filter: blur(8px);
+        }
+        .case-outcome-title-img.anim-low-tier  ~ .outcome-flare,
+        .case-outcome-title-img.anim-high-tier ~ .outcome-flare { animation: outcomeFlare 1100ms cubic-bezier(.2,.8,.2,1) 260ms forwards; }
+        .case-outcome-amount.anim-payout-reveal ~ .outcome-flare { animation: outcomeFlare 1100ms cubic-bezier(.2,.8,.2,1) 80ms forwards; }
+        .case-outcome-title-img.anim-high-tier ~ .outcome-flare, .case-outcome-amount.anim-payout-reveal ~ .outcome-flare { --fi: 1; }
+        .tier-common ~ .outcome-flare  { --fc: #38BDF8; }
+        .tier-even ~ .outcome-flare    { --fc: #14B8A6; }
+        .tier-profit ~ .outcome-flare  { --fc: #22C55E; }
+        .tier-rare ~ .outcome-flare    { --fc: #A855F7; }
+        .tier-jackpot ~ .outcome-flare, .case-outcome-amount.jackpot ~ .outcome-flare { --fc: #FACC15; }
+        @keyframes outcomeFlare {
+            0%   { opacity: 0; transform: translate(-50%, -50%) scaleX(.05); }
+            35%  { opacity: var(--fi); transform: translate(-50%, -50%) scaleX(1); }
+            100% { opacity: calc(var(--fi) * .55); transform: translate(-50%, -50%) scaleX(1); }
+        }
         .payment-logos { margin-top: 16px; text-align: center; }
         .payment-logos-row { display: flex; justify-content: center; gap: 14px; }
         .payment-logos-row img { width: 40px; height: 40px; border-radius: 10px; object-fit: cover; }
@@ -424,10 +509,18 @@
 <!-- MODAL 3B: CASE OPENING OUTCOME (FULL-SCREEN CINEMATIC OVERLAY)      -->
 <!-- =================================================================== -->
 <div id="caseOutcomeModal" class="modal-backdrop case-outcome-backdrop">
-    <video id="caseOutcomeBgVideo" class="case-outcome-bg-video" src="/video/golden-rain.mp4?v=37" preload="auto" muted playsinline webkit-playsinline aria-hidden="true"></video>
+    <video id="caseOutcomeBgVideo" class="case-outcome-bg-video" src="/video/cash-rain-6sec-blurred.mp4?v=1" preload="auto" muted playsinline webkit-playsinline aria-hidden="true"></video>
+    <video id="caseOutcomeFxVideo" class="case-outcome-bg-video case-outcome-fx-video" src="/video/yellow-explosion-effect-1and27sec.mp4?v=1" preload="auto" muted playsinline webkit-playsinline aria-hidden="true"></video>
     <div id="caseOutcomeStage" class="case-outcome-stage">
-        <img id="caseOutcomeTitleImg" class="case-outcome-title-img" alt="Outcome Tier" draggable="false" style="visibility: hidden;" />
-        <div id="caseOutcomeUsdtAmount" class="case-outcome-amount">+$0.00 USDT</div>
+        <div class="outcome-line">
+            <img id="caseOutcomeTitleImg" class="case-outcome-title-img" alt="Outcome Tier" draggable="false" style="visibility: hidden;" />
+            <span class="outcome-flare" aria-hidden="true"></span>
+        </div>
+        <div class="outcome-line">
+            <div id="caseOutcomeUsdtAmount" class="case-outcome-amount">+$0.00 USDT</div>
+            <span class="outcome-flare" aria-hidden="true"></span>
+            <span class="outcome-plate" aria-hidden="true"></span>
+        </div>
     </div>
 </div>
 
@@ -479,7 +572,7 @@
 
 <div id="toastContainer" class="toast-container"></div>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="/app.js?v=42"></script>
+<script src="/app.js?v=48"></script>
 </body>
 
 </html>
