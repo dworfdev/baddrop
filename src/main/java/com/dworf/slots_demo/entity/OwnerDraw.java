@@ -28,6 +28,10 @@ public class OwnerDraw {
     @Column(length = 200, updatable = false)
     private String note;
 
+    /** HOUSE = monthly house-profit settlement, POOL = manual correction taken out of the prize pool. */
+    @Column(nullable = false, length = 8, updatable = false)
+    private String source = "HOUSE";
+
     @Column(name = "admin_name", nullable = false, length = 64, updatable = false)
     private String adminName;
 
@@ -38,6 +42,11 @@ public class OwnerDraw {
     }
 
     public OwnerDraw(BigDecimal amount, String note, String adminName) {
+        this(amount, note, adminName, "HOUSE");
+    }
+
+    public OwnerDraw(BigDecimal amount, String note, String adminName, String source) {
+        this.source = source;
         this.amount = amount;
         this.note = note;
         this.adminName = adminName;
@@ -45,6 +54,7 @@ public class OwnerDraw {
 
     public Long getId() { return id; }
     public BigDecimal getAmount() { return amount; }
+    public String getSource() { return source; }
     public String getNote() { return note; }
     public String getAdminName() { return adminName; }
     public Instant getCreatedAt() { return createdAt; }

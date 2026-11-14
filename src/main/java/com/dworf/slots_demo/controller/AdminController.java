@@ -139,6 +139,13 @@ public class AdminController {
         return settlement.settleHouseProfit(body.amount(), body.note(), actor(req), req.getRemoteAddr());
     }
 
+    /** Manual correction taken out of the prize pool itself (wrongly approved deposit, books did not match). */
+    @PostMapping("/api/admin/bankroll/deduct-pool")
+    public SettlementService.Settled deductPool(@RequestBody SettleRequest body, HttpServletRequest req) {
+        if (body == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Body required");
+        return settlement.deductPrizePool(body.amount(), body.note(), actor(req), req.getRemoteAddr());
+    }
+
     @GetMapping("/api/admin/owner-draws")
     public List<OwnerDraw> draws() {
         return ownerDraws.findTop50ByOrderByIdDesc();

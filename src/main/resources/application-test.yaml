@@ -39,6 +39,8 @@ slots:
     password-hash: ${ADMIN_PASSWORD_HASH:}
     totp-secret: ${ADMIN_TOTP_SECRET:}
   telegram:
+    # Public link of the bot (not a secret): shown on the "outside Telegram" screen. Replace with your real bot link.
+    bot-url: https://t.me/bad_drop_bot
     bot-token: ${TELEGRAM_BOT_TOKEN:}
     max-auth-age-seconds: 3600
   auth:

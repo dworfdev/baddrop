@@ -57,6 +57,8 @@ slots:
     same-site: ${COOKIE_SAME_SITE:Strict}
   telegram:
     # Bot token from @BotFather. Empty = player login is DISABLED (fail-closed). Keep it in .env only.
+    # Public link of the bot (not a secret): shown on the "outside Telegram" screen. Replace with your real bot link.
+    bot-url: https://t.me/bad_drop_bot
     bot-token: ${TELEGRAM_BOT_TOKEN:}
     max-auth-age-seconds: ${TELEGRAM_MAX_AUTH_AGE_SECONDS:3600}
   auth:

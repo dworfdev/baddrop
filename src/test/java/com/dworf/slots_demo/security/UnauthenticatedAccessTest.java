@@ -45,6 +45,7 @@ class UnauthenticatedAccessTest extends IntegrationTestBase {
                 Arguments.of("POST", "/api/admin/bankroll/reset"),
                 Arguments.of("GET", "/api/admin/reconciliation"),
                 Arguments.of("POST", "/api/admin/bankroll/settle"),
+                Arguments.of("POST", "/api/admin/bankroll/deduct-pool"),
                 Arguments.of("GET", "/api/admin/owner-draws"),
                 Arguments.of("GET", "/api/admin/audit"),
                 Arguments.of("GET", "/api/admin/users/someone"),

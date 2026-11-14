@@ -20,9 +20,12 @@ public class PublicController {
     private final PlayService play;
     private final WalletService wallet;
     private final boolean devLoginEnabled;
+    private final String telegramBotUrl;
 
     public PublicController(PlayService play, WalletService wallet,
-                            @Value("${slots.auth.dev-login-enabled:false}") boolean devLoginEnabled) {
+                            @Value("${slots.auth.dev-login-enabled:false}") boolean devLoginEnabled,
+                            @Value("${slots.telegram.bot-url:}") String telegramBotUrl) {
+        this.telegramBotUrl = telegramBotUrl;
         this.play = play;
         this.wallet = wallet;
         this.devLoginEnabled = devLoginEnabled;
@@ -43,6 +46,7 @@ public class PublicController {
         m.put("minDepositAmount", WalletService.MIN_DEPOSIT_AMOUNT);
         m.put("minWithdrawAmount", WalletService.MIN_WITHDRAW_AMOUNT);
         m.put("devLoginEnabled", devLoginEnabled);
+        m.put("telegramBotUrl", telegramBotUrl);
         return m;
     }
 

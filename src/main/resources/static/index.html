@@ -8,10 +8,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
-        rel="stylesheet">
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+            rel="stylesheet">
     <link rel="stylesheet" href="/styles.css?v=38" />
     <style>
+        .payment-logos { margin-top: 16px; text-align: center; }
+        .payment-logos-row { display: flex; justify-content: center; gap: 14px; }
+        .payment-logos-row img { width: 40px; height: 40px; border-radius: 10px; object-fit: cover; }
+        .payment-logos-caption { margin: 10px 0 0; font-size: 11px; opacity: .7; line-height: 1.4; }
         #walletStep2 .highlight-pill,
         #walletStep2 .highlight-pill strong { color: #fff !important; }
         .support-contact { margin: 18px 0 8px; text-align: center; font-size: 12px; opacity: .8; }
@@ -21,465 +25,459 @@
 </head>
 
 <body>
-    <!-- =================================================================== -->
-    <!-- SCREEN 1: WELCOME / AUTH SCREEN                                     -->
-    <!-- =================================================================== -->
-    <div id="welcomeScreen" class="screen-wrapper active">
-        <div class="welcome-container">
-            <h1 class="welcome-title">Welcome to BADDROP!</h1>
+<!-- =================================================================== -->
+<!-- SCREEN 1: WELCOME / AUTH SCREEN                                     -->
+<!-- =================================================================== -->
+<div id="welcomeScreen" class="screen-wrapper active">
+    <div class="welcome-container">
+        <h1 class="welcome-title">Welcome to BADDROP!</h1>
 
-            <div class="auth-form">
-                <p id="authStatus" class="payment-instruction-text">Signing in with Telegram...</p>
-                <div id="devLoginBox" class="auth-field" hidden>
-                    <label for="devUsername">dev login (test only)</label>
-                    <input id="devUsername" type="text" placeholder="username" autocomplete="off" />
-                    <div class="auth-actions">
-                        <button id="devLoginBtn" type="button" class="pill-btn-primary auth-equal-btn">Dev login</button>
-                    </div>
-                </div>
+        <div class="auth-form">
+            <p id="authStatus" class="payment-instruction-text">Signing in with Telegram...</p>
+            <div class="auth-actions">
+                <a id="openBotBtn" href="#" class="pill-btn-primary auth-equal-btn" hidden
+                   style="text-align:center;text-decoration:none;display:none">Open in Telegram</a>
+            </div>
+            <div id="devLoginBox" class="auth-field" hidden>
+                <label for="devUsername">dev login (test only)</label>
+                <input id="devUsername" type="text" placeholder="username" autocomplete="off" />
                 <div class="auth-actions">
-                    <button id="retryLoginBtn" type="button" class="text-btn-secondary auth-equal-btn" hidden>Retry</button>
+                    <button id="devLoginBtn" type="button" class="pill-btn-primary auth-equal-btn">Dev login</button>
                 </div>
+            </div>
+            <div class="auth-actions">
+                <button id="retryLoginBtn" type="button" class="text-btn-secondary auth-equal-btn" hidden>Retry</button>
             </div>
         </div>
     </div>
-
-    <!-- =================================================================== -->
-    <!-- SCREENS 2, 3, 4: LOGGED-IN PLAYER SHELL                             -->
-    <!-- =================================================================== -->
-    <div id="playerScreen" class="screen-wrapper">
-        <div class="player-frame">
-            <!-- PERSISTENT TOP BAR: username | balance | Deposit button | Avatar -->
-            <header class="player-topbar">
-                <div class="topbar-user-cluster">
-                    <span id="topUsername" class="top-username">username</span>
-                    <span class="top-divider">|</span>
-                    <span class="top-balance">$<span id="topBalance">0.00</span></span>
-                    <div class="topbar-right-actions">
-                        <button id="openBalanceModalBtn" type="button" class="topbar-deposit-btn"
-                            title="Deposit Balance">Deposit</button>
-                        <button id="topbarAvatarBtn" type="button" class="topbar-avatar-btn"
-                            title="Open Profile">
-                            <img src="/imgs/mock_avatar.png" alt="User Avatar" class="topbar-avatar-img" />
-                        </button>
-                    </div>
-                </div>
-            </header>
-
-            <!-- TAB VIEWS CONTAINER -->
-            <main class="tab-stage">
-                <!-- ======================================================= -->
-                <!-- TAB 1: GAMES VIEW                                       -->
-                <!-- ======================================================= -->
-                <section id="tab-game" class="tab-view active">
-                    <!-- Compact Single-Row Horizontal LIVE Activity Ticker Bar -->
-                    <div id="liveActivityBar" class="live-activity-bar" style="display: none;" aria-live="polite">
-                        <div class="live-indicator-badge">
-                            <span class="live-dot"></span>
-                            <span class="live-label-text">LIVE</span>
-                        </div>
-                        <div id="liveTickerTrack" class="live-ticker-track">
-                            <!-- Populated dynamically with up to 2 real platform activity pills -->
-                        </div>
-                    </div>
-
-                    <!-- Main Top Banner (960 x 720) -->
-                    <div id="featuredBanner" class="featured-game-banner">
-                        <img id="bannerImg" src="/imgs/main-top-banner.png" alt="Cases on marketplace are available now"
-                            class="banner-image" />
-                    </div>
-
-                    <h2 class="section-heading">Games</h2>
-
-                    <!-- Game Button: Cases (960 x 720) -->
-                    <div class="games-grid">
-                        <button id="openCasesPageBtn" type="button" class="game-mock-card" data-game="Cases">
-                            <img src="/imgs/cases-banner.png" alt="Cases" class="game-card-image" />
-                        </button>
-                        <p class="more-games-hint">More options will be available later</p>
-                    </div>
-                </section>
-
-                <!-- ======================================================= -->
-                <!-- TAB 1B: CASES MARKETPLACE VIEW (OPENED WHEN CASES CLICKED) -->
-                <!-- ======================================================= -->
-                <section id="tab-cases" class="tab-view">
-                    <div class="subpage-top-row">
-                        <button id="backToGamesBtn" type="button" class="profile-action-btn">&larr; Back to
-                            Games</button>
-                    </div>
-
-                    <h2 class="section-heading">Cases Marketplace</h2>
-
-                    <!-- Controls Row: (find by name field) + (filter button) -->
-                    <div class="inventory-toolbar">
-                        <input id="casesSearchInput" type="text" class="search-input" placeholder="find by name..."
-                            autocomplete="off" />
-                        <button id="casesFilterBtn" type="button" class="filter-btn">Filter: Price (Low &rarr;
-                            High)</button>
-                    </div>
-
-                    <!-- Cases Marketplace Grid (3 max in row, price + BUY button) -->
-                    <div id="casesMarketplaceGrid" class="inventory-grid">
-                        <!-- Populated dynamically: pepe-iron ($2), shiba-inu-gold ($5), doge-amethyst ($11) -->
-                    </div>
-                </section>
-
-                <!-- ======================================================= -->
-                <!-- TAB 2: INVENTORY VIEW                                   -->
-                <!-- ======================================================= -->
-                <section id="tab-inventory" class="tab-view">
-                    <h2 class="section-heading">Your inventory</h2>
-
-                    <!-- Controls Row: (find by name field) + (filter button) -->
-                    <div class="inventory-toolbar">
-                        <input id="inventorySearchInput" type="text" class="search-input" placeholder="find by name..."
-                            autocomplete="off" />
-                        <button id="inventoryFilterBtn" type="button" class="filter-btn">Filter: All</button>
-                    </div>
-
-                    <!-- Inventory Cases Grid (Iron case x2, Gold case x1, etc.) -->
-                    <div id="inventoryGrid" class="inventory-grid">
-                        <!-- Populated dynamically -->
-                    </div>
-                </section>
-
-                <!-- ======================================================= -->
-                <!-- TAB 3: PROFILE VIEW                                     -->
-                <!-- ======================================================= -->
-                <section id="tab-profile" class="tab-view">
-                    <h2 class="section-heading">Your profile</h2>
-
-                    <!-- Mock Avatar Circle -->
-                    <div class="avatar-wrapper">
-                        <div class="mock-avatar-circle">
-                            <img src="/imgs/mock_avatar.png" alt="User Avatar" class="avatar-img" />
-                        </div>
-                    </div>
-
-                    <!-- Deposit & Withdraw Side-by-Side Actions Beneath Avatar -->
-                    <div class="profile-wallet-actions">
-                        <button id="profileDepositBtn" type="button" class="pill-btn-primary">Deposit</button>
-                        <button id="profileWithdrawBtn" type="button" class="pill-btn-outline">Withdraw</button>
-                    </div>
-
-                    <!-- User Info Lines -->
-                    <div class="profile-info-list">
-                        <div class="profile-info-line">
-                            Username - <span id="profileUsername" class="mono-bold"></span>
-                        </div>
 </div>
 
-                    <!-- Profile Action Buttons -->
-                    <div class="profile-actions-stack">
-                        <button id="logoutBtn" type="button" class="profile-action-btn">
-                            log out
-                        </button>
-                        <button id="deleteAccountBtn" type="button" class="profile-action-btn danger">
-                            delete account
-                        </button>
+<!-- =================================================================== -->
+<!-- SCREENS 2, 3, 4: LOGGED-IN PLAYER SHELL                             -->
+<!-- =================================================================== -->
+<div id="playerScreen" class="screen-wrapper">
+    <div class="player-frame">
+        <!-- PERSISTENT TOP BAR: username | balance | Deposit button | Avatar -->
+        <header class="player-topbar">
+            <div class="topbar-user-cluster">
+                <span id="topUsername" class="top-username">username</span>
+                <span class="top-divider">|</span>
+                <span class="top-balance">$<span id="topBalance">0.00</span></span>
+                <div class="topbar-right-actions">
+                    <button id="openBalanceModalBtn" type="button" class="topbar-deposit-btn"
+                            title="Deposit Balance">Deposit</button>
+                    <button id="topbarAvatarBtn" type="button" class="topbar-avatar-btn"
+                            title="Open Profile">
+                        <img src="/imgs/mock_avatar.png" alt="User Avatar" class="topbar-avatar-img" />
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- TAB VIEWS CONTAINER -->
+        <main class="tab-stage">
+            <!-- ======================================================= -->
+            <!-- TAB 1: GAMES VIEW                                       -->
+            <!-- ======================================================= -->
+            <section id="tab-game" class="tab-view active">
+                <!-- Compact Single-Row Horizontal LIVE Activity Ticker Bar -->
+                <div id="liveActivityBar" class="live-activity-bar" style="display: none;" aria-live="polite">
+                    <div class="live-indicator-badge">
+                        <span class="live-dot"></span>
+                        <span class="live-label-text">LIVE</span>
                     </div>
+                    <div id="liveTickerTrack" class="live-ticker-track">
+                        <!-- Populated dynamically with up to 2 real platform activity pills -->
+                    </div>
+                </div>
 
-                    <p id="supportContact" class="support-contact" hidden>
-                        Support contact: <a id="supportLink" href="#" target="_blank" rel="noopener noreferrer"></a>
-                    </p>
-                </section>
-            </main>
+                <!-- Main Top Banner (960 x 720) -->
+                <div id="featuredBanner" class="featured-game-banner">
+                    <img id="bannerImg" src="/imgs/main-top-banner.png" alt="Cases on marketplace are available now"
+                         class="banner-image" />
+                </div>
 
-            <!-- PERSISTENT BOTTOM NAVIGATION: game | inventory | profile -->
-            <nav class="player-bottom-nav">
-                <button type="button" class="nav-tab active" data-target="tab-game">game</button>
-                <button type="button" class="nav-tab" data-target="tab-inventory">inventory</button>
-                <button type="button" class="nav-tab" data-target="tab-profile">profile</button>
-            </nav>
-        </div>
+                <h2 class="section-heading">Games</h2>
+
+                <!-- Game Button: Cases (960 x 720) -->
+                <div class="games-grid">
+                    <button id="openCasesPageBtn" type="button" class="game-mock-card" data-game="Cases">
+                        <img src="/imgs/cases-banner.png" alt="Cases" class="game-card-image" />
+                    </button>
+                    <p class="more-games-hint">More options will be available later</p>
+                </div>
+            </section>
+
+            <!-- ======================================================= -->
+            <!-- TAB 1B: CASES MARKETPLACE VIEW (OPENED WHEN CASES CLICKED) -->
+            <!-- ======================================================= -->
+            <section id="tab-cases" class="tab-view">
+                <div class="subpage-top-row">
+                    <button id="backToGamesBtn" type="button" class="profile-action-btn">&larr; Back to
+                        Games</button>
+                </div>
+
+                <h2 class="section-heading">Cases Marketplace</h2>
+
+                <!-- Controls Row: (find by name field) + (filter button) -->
+                <div class="inventory-toolbar">
+                    <input id="casesSearchInput" type="text" class="search-input" placeholder="find by name..."
+                           autocomplete="off" />
+                    <button id="casesFilterBtn" type="button" class="filter-btn">Filter: Price (Low &rarr;
+                        High)</button>
+                </div>
+
+                <!-- Cases Marketplace Grid (3 max in row, price + BUY button) -->
+                <div id="casesMarketplaceGrid" class="inventory-grid">
+                    <!-- Populated dynamically: pepe-iron ($2), shiba-inu-gold ($5), doge-amethyst ($11) -->
+                </div>
+            </section>
+
+            <!-- ======================================================= -->
+            <!-- TAB 2: INVENTORY VIEW                                   -->
+            <!-- ======================================================= -->
+            <section id="tab-inventory" class="tab-view">
+                <h2 class="section-heading">Your inventory</h2>
+
+                <!-- Controls Row: (find by name field) + (filter button) -->
+                <div class="inventory-toolbar">
+                    <input id="inventorySearchInput" type="text" class="search-input" placeholder="find by name..."
+                           autocomplete="off" />
+                    <button id="inventoryFilterBtn" type="button" class="filter-btn">Filter: All</button>
+                </div>
+
+                <!-- Inventory Cases Grid (Iron case x2, Gold case x1, etc.) -->
+                <div id="inventoryGrid" class="inventory-grid">
+                    <!-- Populated dynamically -->
+                </div>
+            </section>
+
+            <!-- ======================================================= -->
+            <!-- TAB 3: PROFILE VIEW                                     -->
+            <!-- ======================================================= -->
+            <section id="tab-profile" class="tab-view">
+                <h2 class="section-heading">Your profile</h2>
+
+                <!-- Mock Avatar Circle -->
+                <div class="avatar-wrapper">
+                    <div class="mock-avatar-circle">
+                        <img src="/imgs/mock_avatar.png" alt="User Avatar" class="avatar-img" />
+                    </div>
+                </div>
+
+                <!-- Deposit & Withdraw Side-by-Side Actions Beneath Avatar -->
+                <div class="profile-wallet-actions">
+                    <button id="profileDepositBtn" type="button" class="pill-btn-primary">Deposit</button>
+                    <button id="profileWithdrawBtn" type="button" class="pill-btn-outline">Withdraw</button>
+                </div>
+
+                <!-- User Info Lines -->
+                <div class="profile-info-list">
+                    <div class="profile-info-line">
+                        Username - <span id="profileUsername" class="mono-bold"></span>
+                    </div>
+                </div>
+
+                <!-- Profile Action Buttons -->
+                <div class="profile-actions-stack">
+                    <button id="deleteAccountBtn" type="button" class="profile-action-btn danger">
+                        delete account
+                    </button>
+                </div>
+
+                <p id="supportContact" class="support-contact" hidden>
+                    Support contact: <a id="supportLink" href="#" target="_blank" rel="noopener noreferrer"></a>
+                </p>
+            </section>
+        </main>
+
+        <!-- PERSISTENT BOTTOM NAVIGATION: game | inventory | profile -->
+        <nav class="player-bottom-nav">
+            <button type="button" class="nav-tab active" data-target="tab-game">game</button>
+            <button type="button" class="nav-tab" data-target="tab-inventory">inventory</button>
+            <button type="button" class="nav-tab" data-target="tab-profile">profile</button>
+        </nav>
     </div>
+</div>
 
-    <!-- =================================================================== -->
-    <!-- MODAL 1: BALANCE DEPOSIT / WITHDRAW (3-STEP PAYMENT FLOW)           -->
-    <!-- =================================================================== -->
-    <div id="balanceModal" class="modal-backdrop">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3 id="balanceModalTitle">Balance Wallet</h3>
-                <button id="closeBalanceModalBtn" type="button" class="modal-close">&times;</button>
+<!-- =================================================================== -->
+<!-- MODAL 1: BALANCE DEPOSIT / WITHDRAW (3-STEP PAYMENT FLOW)           -->
+<!-- =================================================================== -->
+<div id="balanceModal" class="modal-backdrop">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 id="balanceModalTitle">Balance Wallet</h3>
+            <button id="closeBalanceModalBtn" type="button" class="modal-close">&times;</button>
+        </div>
+
+        <!-- STEP 1: AMOUNT & DEPOSIT / WITHDRAW SELECTION -->
+        <div id="walletStep1" class="wallet-step active">
+            <div class="modal-field">
+                <label for="modalBalanceAmount">Amount ($)</label>
+                <input id="modalBalanceAmount" type="number" min="0" step="0.01" value="0" />
             </div>
+            <div class="modal-chips">
+                <button type="button" class="modal-chip" data-amt="1">$1</button>
+                <button type="button" class="modal-chip" data-amt="2">$2</button>
+                <button type="button" class="modal-chip" data-amt="5">$5</button>
+                <button type="button" class="modal-chip" data-amt="10">$10</button>
+                <button type="button" class="modal-chip" data-amt="20">$20</button>
+            </div>
+            <div id="walletStep1Actions" class="modal-actions single">
+                <button id="modalDepositBtn" type="button" class="pill-btn-primary">+ Deposit</button>
+                <button id="modalWithdrawBtn" type="button" class="pill-btn-outline">&minus; Withdraw</button>
+            </div>
+            <div class="payment-logos">
+                <div class="payment-logos-row">
+                    <img src="/imgs/payment-logos/cryptobot-logo.png" alt="Crypto Bot" width="40" height="40" loading="lazy" />
+                    <img src="/imgs/payment-logos/mytonwallet-logo.png" alt="MyTonWallet" width="40" height="40" loading="lazy" />
+                    <img src="/imgs/payment-logos/tonkeeper-logo.png" alt="Tonkeeper" width="40" height="40" loading="lazy" />
+                    <img src="/imgs/payment-logos/walt-logo.png" alt="Wallet" width="40" height="40" loading="lazy" />
+                </div>
+                <p class="payment-logos-caption">Supported wallets (inside Telegram). Payments are accepted only from these
+                    wallets and are sent only to them; they can fill in the memo and copy the address automatically.</p>
+            </div>
+        </div>
 
-            <!-- STEP 1: AMOUNT & DEPOSIT / WITHDRAW SELECTION -->
-            <div id="walletStep1" class="wallet-step active">
+        <!-- STEP 2: PAYMENT / WALLET DETAILS & 15-MIN TIMER -->
+        <div id="walletStep2" class="wallet-step">
+            <!-- Deposit Mode Panel -->
+            <div id="step2DepositPanel" class="wallet-mode-panel">
+                <div class="crypto-meta-row">
+                    <div class="crypto-meta-pill highlight-pill">Currency: <strong>USDT</strong></div>
+                    <div class="crypto-meta-pill highlight-pill">Chain: <strong>Ton</strong></div>
+                    <div class="crypto-meta-pill">Amount: <strong id="step2DepositAmountText">$0.00</strong></div>
+                </div>
+
                 <div class="modal-field">
-                    <label for="modalBalanceAmount">Amount ($)</label>
-                    <input id="modalBalanceAmount" type="number" min="0" step="0.01" value="0" />
-                </div>
-                <div class="modal-chips">
-                    <button type="button" class="modal-chip" data-amt="1">$1</button>
-                    <button type="button" class="modal-chip" data-amt="2">$2</button>
-                    <button type="button" class="modal-chip" data-amt="5">$5</button>
-                    <button type="button" class="modal-chip" data-amt="10">$10</button>
-                    <button type="button" class="modal-chip" data-amt="20">$20</button>
-                </div>
-                <div id="walletStep1Actions" class="modal-actions single">
-                    <button id="modalDepositBtn" type="button" class="pill-btn-primary">+ Deposit</button>
-                    <button id="modalWithdrawBtn" type="button" class="pill-btn-outline">&minus; Withdraw</button>
-                </div>
-            </div>
-
-            <!-- STEP 2: PAYMENT / WALLET DETAILS & 15-MIN TIMER -->
-            <div id="walletStep2" class="wallet-step">
-                <!-- Deposit Mode Panel -->
-                <div id="step2DepositPanel" class="wallet-mode-panel">
-                    <div class="crypto-meta-row">
-                        <div class="crypto-meta-pill highlight-pill">Currency: <strong>USDT</strong></div>
-                        <div class="crypto-meta-pill highlight-pill">Chain: <strong>Ton</strong></div>
-                        <div class="crypto-meta-pill">Amount: <strong id="step2DepositAmountText">$0.00</strong></div>
-                    </div>
-
-                    <div class="modal-field">
-                        <label>Deposit Address (click to copy)</label>
-                        <div class="copiable-address-box" id="copyAddressBox" title="Click to copy address">
+                    <label>Deposit Address (click to copy)</label>
+                    <div class="copiable-address-box" id="copyAddressBox" title="Click to copy address">
                             <span id="depositAddressText"
-                                class="address-code">UQCys13azAWTFuERWwjc_5sqKZxQEhJhbtGGaiyp2Sf55Hrg</span>
-                            <button id="copyDepositAddressBtn" type="button" class="copy-chip-btn">Copy</button>
-                        </div>
+                                  class="address-code">UQCys13azAWTFuERWwjc_5sqKZxQEhJhbtGGaiyp2Sf55Hrg</span>
+                        <button id="copyDepositAddressBtn" type="button" class="copy-chip-btn">Copy</button>
                     </div>
+                </div>
 
+                <div class="modal-field">
+                    <label>Payment comment / memo (required, click to copy)</label>
+                    <div class="copiable-address-box" id="copyMemoBox" title="Click to copy memo">
+                        <span id="depositMemoText" class="address-code"></span>
+                        <button id="copyDepositMemoBtn" type="button" class="copy-chip-btn">Copy</button>
+                    </div>
+                </div>
+
+                <div class="deposit-timer-box">
+                    <span class="timer-label">Time remaining:</span>
+                    <span id="depositTimerDisplay" class="timer-countdown">15:00</span>
+                </div>
+
+                <div class="admin-payment-note">
+                    <p class="payment-instruction-text">
+                        Send the exact amount to the address above and put the memo in the transfer comment.
+                        After the transfer, paste the transaction hash (or an explorer link) below and press Sent.
+                    </p>
                     <div class="modal-field">
-                        <label>Payment comment / memo (required, click to copy)</label>
-                        <div class="copiable-address-box" id="copyMemoBox" title="Click to copy memo">
-                            <span id="depositMemoText" class="address-code"></span>
-                            <button id="copyDepositMemoBtn" type="button" class="copy-chip-btn">Copy</button>
-                        </div>
+                        <label for="depositReceiptInput">Transaction hash or explorer link <span
+                                class="required-star">*</span></label>
+                        <input id="depositReceiptInput" type="text" placeholder="64-hex hash or tonviewer link"
+                               autocomplete="off" />
                     </div>
-
-                    <div class="deposit-timer-box">
-                        <span class="timer-label">Time remaining:</span>
-                        <span id="depositTimerDisplay" class="timer-countdown">15:00</span>
-                    </div>
-
-                    <div class="admin-payment-note">
-                        <p class="payment-instruction-text">
-                            Send the exact amount to the address above and put the memo in the transfer comment.
-                            After the transfer, paste the transaction hash (or an explorer link) below and press Sent.
-                        </p>
-                        <div class="modal-field">
-                            <label for="depositReceiptInput">Transaction hash or explorer link <span
-                                    class="required-star">*</span></label>
-                            <input id="depositReceiptInput" type="text" placeholder="64-hex hash or tonviewer link"
-                                autocomplete="off" />
-                        </div>
-                        <div class="payment-attention-box">
-                            <span class="attention-title">ATTENTION!</span>
-                            <span>A deposit without the correct memo or with a wrong amount will be declined. The
+                    <div class="payment-attention-box">
+                        <span class="attention-title">ATTENTION!</span>
+                        <span>A deposit without the correct memo or with a wrong amount will be declined. The
                                 specified amount does not include network or processing fees; all transaction fees
                                 must be paid entirely by the user.</span>
-                        </div>
-                    </div>
-
-                    <div class="modal-actions single">
-                        <button id="depositSentBtn" type="button" class="pill-btn-primary">Sent</button>
-                        <button id="cancelDepositBtn" type="button" class="text-btn-secondary">Cancel deposit</button>
                     </div>
                 </div>
 
-                <!-- Withdraw Mode Panel -->
-                <div id="step2WithdrawPanel" class="wallet-mode-panel">
-                    <div class="crypto-meta-row">
-                        <div class="crypto-meta-pill highlight-pill">Currency: <strong>USDT</strong></div>
-                        <div class="crypto-meta-pill highlight-pill">Chain: <strong>Ton</strong></div>
-                        <div class="crypto-meta-pill">Amount: <strong id="step2WithdrawAmountText">$0.00</strong></div>
-                    </div>
+                <div class="modal-actions single">
+                    <button id="depositSentBtn" type="button" class="pill-btn-primary">Sent</button>
+                    <button id="cancelDepositBtn" type="button" class="text-btn-secondary">Cancel deposit</button>
+                </div>
+            </div>
 
-                    <div class="modal-field">
-                        <label for="withdrawWalletAddressInput">Your USDT (Ton) Address <span
-                                class="required-star">*</span></label>
-                        <input id="withdrawWalletAddressInput" type="text"
-                            placeholder="Enter your TON wallet address..." autocomplete="off" required />
-                    </div>
+            <!-- Withdraw Mode Panel -->
+            <div id="step2WithdrawPanel" class="wallet-mode-panel">
+                <div class="crypto-meta-row">
+                    <div class="crypto-meta-pill highlight-pill">Currency: <strong>USDT</strong></div>
+                    <div class="crypto-meta-pill highlight-pill">Chain: <strong>Ton</strong></div>
+                    <div class="crypto-meta-pill">Amount: <strong id="step2WithdrawAmountText">$0.00</strong></div>
+                </div>
 
-                    <div class="admin-payment-note withdraw-attention-note">
-                        <div class="payment-attention-box">
-                            <span class="attention-title">ATTENTION!</span>
-                            <span>If you will submit wrong address &mdash; you will lose your money. The specified
+                <div class="modal-field">
+                    <label for="withdrawWalletAddressInput">Your USDT (Ton) Address <span
+                            class="required-star">*</span></label>
+                    <input id="withdrawWalletAddressInput" type="text"
+                           placeholder="Enter your TON wallet address..." autocomplete="off" required />
+                </div>
+
+                <div class="admin-payment-note withdraw-attention-note">
+                    <div class="payment-attention-box">
+                        <span class="attention-title">ATTENTION!</span>
+                        <span>If you will submit wrong address &mdash; you will lose your money. The specified
                                 amount does not include network or processing fees; all transaction fees must be paid
                                 entirely by the user.</span>
-                        </div>
-                    </div>
-
-                    <div class="modal-actions single">
-                        <button id="withdrawSentBtn" type="button" class="pill-btn-primary">Sent</button>
                     </div>
                 </div>
-            </div>
 
-            <!-- STEP 3: FINAL CONFIRMATION WINDOW ("All done!") -->
-            <div id="walletStep3" class="wallet-step">
-                <div class="wallet-done-box">
-                    <div class="done-check-badge">&#10003;</div>
-                    <h4 class="wallet-done-title">All done!</h4>
-                </div>
                 <div class="modal-actions single">
-                    <button id="walletDoneExitBtn" type="button" class="pill-btn-primary">Exit</button>
-                </div>
-            </div>
-
-            <!-- MINI-PROGRESS BAR ACROSS ALL 3 STEPS -->
-            <div class="wallet-progress-wrapper">
-                <div class="wallet-progress-steps">
-                    <span class="progress-step-label active" data-step-indicator="1">1. Amount</span>
-                    <span class="progress-step-label" data-step-indicator="2">2. Payment</span>
-                    <span class="progress-step-label" data-step-indicator="3">3. Done</span>
-                </div>
-                <div class="wallet-progress-track">
-                    <div id="walletProgressFill" class="wallet-progress-fill step-1"></div>
+                    <button id="withdrawSentBtn" type="button" class="pill-btn-primary">Sent</button>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- GENERIC CONFIRMATION (amount check, deposit cancel) -->
-    <div id="confirmModal" class="modal-backdrop" style="z-index:1200">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3 id="confirmModalTitle">Confirm</h3>
+        <!-- STEP 3: FINAL CONFIRMATION WINDOW ("All done!") -->
+        <div id="walletStep3" class="wallet-step">
+            <div class="wallet-done-box">
+                <div class="done-check-badge">&#10003;</div>
+                <h4 class="wallet-done-title">All done!</h4>
             </div>
-            <p id="confirmModalText" class="modal-confirm-text"></p>
-            <div class="modal-actions">
-                <button id="confirmModalNo" type="button" class="text-btn-secondary auth-equal-btn">No</button>
-                <button id="confirmModalYes" type="button" class="pill-btn-primary auth-equal-btn">Yes</button>
+            <div class="modal-actions single">
+                <button id="walletDoneExitBtn" type="button" class="pill-btn-primary">Exit</button>
+            </div>
+        </div>
+
+        <!-- MINI-PROGRESS BAR ACROSS ALL 3 STEPS -->
+        <div class="wallet-progress-wrapper">
+            <div class="wallet-progress-steps">
+                <span class="progress-step-label active" data-step-indicator="1">1. Amount</span>
+                <span class="progress-step-label" data-step-indicator="2">2. Payment</span>
+                <span class="progress-step-label" data-step-indicator="3">3. Done</span>
+            </div>
+            <div class="wallet-progress-track">
+                <div id="walletProgressFill" class="wallet-progress-fill step-1"></div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- =================================================================== -->
-    <!-- MODAL 2A: LOGOUT CONFIRMATION                                       -->
-    <!-- =================================================================== -->
-    <div id="logoutModal" class="modal-backdrop">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3>Log Out</h3>
-                <button id="closeLogoutModalBtn" type="button" class="modal-close">&times;</button>
-            </div>
-            <p class="modal-confirm-text">Are you sure you want to log out of your account?</p>
-            <div class="modal-actions">
-                <button id="cancelLogoutBtn" type="button" class="text-btn-secondary auth-equal-btn">No</button>
-                <button id="confirmLogoutBtn" type="button" class="pill-btn-primary auth-equal-btn">Yes</button>
-            </div>
+<!-- GENERIC CONFIRMATION (amount check, deposit cancel) -->
+<div id="confirmModal" class="modal-backdrop" style="z-index:1200">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 id="confirmModalTitle">Confirm</h3>
+        </div>
+        <p id="confirmModalText" class="modal-confirm-text"></p>
+        <div class="modal-actions">
+            <button id="confirmModalNo" type="button" class="text-btn-secondary auth-equal-btn">No</button>
+            <button id="confirmModalYes" type="button" class="pill-btn-primary auth-equal-btn">Yes</button>
         </div>
     </div>
+</div>
 
-    <!-- =================================================================== -->
-    <!-- MODAL 2B: DELETE ACCOUNT SAFETY CONFIRMATION                        -->
-    <!-- =================================================================== -->
-    <div id="deleteAccountModal" class="modal-backdrop">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3>Delete Account</h3>
-                <button id="closeDeleteAccountModalBtn" type="button" class="modal-close">&times;</button>
-            </div>
-            <div class="payment-attention-box">
-                <span class="attention-title">ATTENTION!</span>
-                <span>You will permanently lose all access, balance, inventory, and your account completely. This action
+<!-- =================================================================== -->
+<!-- MODAL 2B: DELETE ACCOUNT SAFETY CONFIRMATION                        -->
+<!-- =================================================================== -->
+<div id="deleteAccountModal" class="modal-backdrop">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3>Delete Account</h3>
+            <button id="closeDeleteAccountModalBtn" type="button" class="modal-close">&times;</button>
+        </div>
+        <div class="payment-attention-box">
+            <span class="attention-title">ATTENTION!</span>
+            <span>You will permanently lose all access, balance, inventory, and your account completely. This action
                     cannot be undone.</span>
-            </div>
-            <div class="modal-field">
-                <label for="deleteAccountConfirmInput">
-                    To confirm, type the exact sentence below:
-                </label>
-                <div id="deleteAccountTargetPhrase" class="delete-phrase-highlight">I agree to permanently delete my
-                    account</div>
-                <input id="deleteAccountConfirmInput" type="text" placeholder="I agree to permanently delete my account"
-                    autocomplete="off" />
-            </div>
-            <div class="modal-actions">
-                <button id="cancelDeleteAccountBtn" type="button"
+        </div>
+        <div class="modal-field">
+            <label for="deleteAccountConfirmInput">
+                To confirm, type the exact sentence below:
+            </label>
+            <div id="deleteAccountTargetPhrase" class="delete-phrase-highlight">I agree to permanently delete my
+                account</div>
+            <input id="deleteAccountConfirmInput" type="text" placeholder="I agree to permanently delete my account"
+                   autocomplete="off" />
+        </div>
+        <div class="modal-actions">
+            <button id="cancelDeleteAccountBtn" type="button"
                     class="text-btn-secondary auth-equal-btn">Cancel</button>
-                <button id="confirmDeleteAccountBtn" type="button" class="pill-btn-outline">Delete Account</button>
-            </div>
+            <button id="confirmDeleteAccountBtn" type="button" class="pill-btn-outline">Delete Account</button>
         </div>
     </div>
+</div>
 
-    <!-- =================================================================== -->
-    <!-- MODAL 3A: CASE ROULETTE OVERLAY (1 TO 5 STACKED REELS + SKIP BTN)   -->
-    <!-- =================================================================== -->
-    <div id="caseRouletteModal" class="modal-backdrop">
-        <div id="caseRouletteStage" class="modal-card case-roulette-modal-card" data-reel-count="1">
-            <div class="roulette-stage-header">
-                <span id="rouletteCaseName" class="roulette-case-name">OPENING CASE</span>
-            </div>
-            <div id="caseRouletteReelsStack" class="case-roulette-reels-stack" data-reel-count="1">
-                <div id="caseRouletteViewport" class="case-roulette-viewport">
-                    <div class="roulette-edge-fade left" aria-hidden="true"></div>
-                    <div class="roulette-edge-fade right" aria-hidden="true"></div>
-                    <div class="roulette-center-marker" aria-hidden="true"></div>
-                    <div id="caseRouletteTrack" class="case-roulette-track"></div>
-                </div>
-            </div>
-            <div class="roulette-skip-row">
-                <button id="rouletteSkipBtn" type="button" class="roulette-skip-btn">Skip</button>
+<!-- =================================================================== -->
+<!-- MODAL 3A: CASE ROULETTE OVERLAY (1 TO 5 STACKED REELS + SKIP BTN)   -->
+<!-- =================================================================== -->
+<div id="caseRouletteModal" class="modal-backdrop">
+    <div id="caseRouletteStage" class="modal-card case-roulette-modal-card" data-reel-count="1">
+        <div class="roulette-stage-header">
+            <span id="rouletteCaseName" class="roulette-case-name">OPENING CASE</span>
+        </div>
+        <div id="caseRouletteReelsStack" class="case-roulette-reels-stack" data-reel-count="1">
+            <div id="caseRouletteViewport" class="case-roulette-viewport">
+                <div class="roulette-edge-fade left" aria-hidden="true"></div>
+                <div class="roulette-edge-fade right" aria-hidden="true"></div>
+                <div class="roulette-center-marker" aria-hidden="true"></div>
+                <div id="caseRouletteTrack" class="case-roulette-track"></div>
             </div>
         </div>
-    </div>
-
-    <!-- =================================================================== -->
-    <!-- MODAL 3B: CASE OPENING OUTCOME (FULL-SCREEN CINEMATIC OVERLAY)      -->
-    <!-- =================================================================== -->
-    <div id="caseOutcomeModal" class="modal-backdrop case-outcome-backdrop">
-        <video id="caseOutcomeBgVideo" class="case-outcome-bg-video" src="/video/golden-rain.mp4?v=37" preload="auto" muted playsinline webkit-playsinline aria-hidden="true"></video>
-        <div id="caseOutcomeStage" class="case-outcome-stage">
-            <img id="caseOutcomeTitleImg" class="case-outcome-title-img" alt="Outcome Tier" draggable="false" style="visibility: hidden;" />
-            <div id="caseOutcomeUsdtAmount" class="case-outcome-amount">+$0.00 USDT</div>
+        <div class="roulette-skip-row">
+            <button id="rouletteSkipBtn" type="button" class="roulette-skip-btn">Skip</button>
         </div>
     </div>
+</div>
 
-    <!-- =================================================================== -->
-    <!-- MODAL 3C: CHOOSE AMOUNT (x1 .. x5 BULK SELECTOR MINI-MODAL)         -->
-    <!-- =================================================================== -->
-    <div id="chooseAmountModal" class="modal-backdrop">
-        <div class="modal-card choose-amount-card">
-            <div class="modal-header">
-                <h3 id="chooseAmountTitle">Choose amount</h3>
-                <button id="closeChooseAmountModalBtn" type="button" class="modal-close">&times;</button>
-            </div>
-            <div id="chooseAmountOptionsRow" class="choose-amount-options-row">
-                <button type="button" class="choose-amount-option-btn" data-qty-option="1">x1</button>
-                <button type="button" class="choose-amount-option-btn" data-qty-option="2">x2</button>
-                <button type="button" class="choose-amount-option-btn" data-qty-option="3">x3</button>
-                <button type="button" class="choose-amount-option-btn" data-qty-option="4">x4</button>
-                <button type="button" class="choose-amount-option-btn" data-qty-option="5">x5</button>
-            </div>
+<!-- =================================================================== -->
+<!-- MODAL 3B: CASE OPENING OUTCOME (FULL-SCREEN CINEMATIC OVERLAY)      -->
+<!-- =================================================================== -->
+<div id="caseOutcomeModal" class="modal-backdrop case-outcome-backdrop">
+    <video id="caseOutcomeBgVideo" class="case-outcome-bg-video" src="/video/golden-rain.mp4?v=37" preload="auto" muted playsinline webkit-playsinline aria-hidden="true"></video>
+    <div id="caseOutcomeStage" class="case-outcome-stage">
+        <img id="caseOutcomeTitleImg" class="case-outcome-title-img" alt="Outcome Tier" draggable="false" style="visibility: hidden;" />
+        <div id="caseOutcomeUsdtAmount" class="case-outcome-amount">+$0.00 USDT</div>
+    </div>
+</div>
+
+<!-- =================================================================== -->
+<!-- MODAL 3C: CHOOSE AMOUNT (x1 .. x5 BULK SELECTOR MINI-MODAL)         -->
+<!-- =================================================================== -->
+<div id="chooseAmountModal" class="modal-backdrop">
+    <div class="modal-card choose-amount-card">
+        <div class="modal-header">
+            <h3 id="chooseAmountTitle">Choose amount</h3>
+            <button id="closeChooseAmountModalBtn" type="button" class="modal-close">&times;</button>
+        </div>
+        <div id="chooseAmountOptionsRow" class="choose-amount-options-row">
+            <button type="button" class="choose-amount-option-btn" data-qty-option="1">x1</button>
+            <button type="button" class="choose-amount-option-btn" data-qty-option="2">x2</button>
+            <button type="button" class="choose-amount-option-btn" data-qty-option="3">x3</button>
+            <button type="button" class="choose-amount-option-btn" data-qty-option="4">x4</button>
+            <button type="button" class="choose-amount-option-btn" data-qty-option="5">x5</button>
         </div>
     </div>
+</div>
 
-    <!-- =================================================================== -->
-    <!-- MODAL 4: CASE DROP CONTENTS INSPECTION MODAL                        -->
-    <!-- =================================================================== -->
-    <div id="caseInspectModal" class="modal-backdrop">
-        <div class="modal-card case-inspect-card">
-            <div class="modal-header">
-                <h3 id="caseInspectTitle">Case Contents</h3>
-                <button id="closeCaseInspectModalBtn" type="button" class="modal-close">&times;</button>
-            </div>
-            <div class="case-inspect-table-wrap">
-                <table class="case-inspect-table">
-                    <thead>
-                        <tr>
-                            <th>Tier</th>
-                            <th>Multiplier</th>
-                            <th>Payout</th>
-                            <th>Chance</th>
-                        </tr>
-                    </thead>
-                    <tbody id="caseInspectTableBody">
-                        <!-- Populated dynamically -->
-                    </tbody>
-                </table>
-            </div>
+<!-- =================================================================== -->
+<!-- MODAL 4: CASE DROP CONTENTS INSPECTION MODAL                        -->
+<!-- =================================================================== -->
+<div id="caseInspectModal" class="modal-backdrop">
+    <div class="modal-card case-inspect-card">
+        <div class="modal-header">
+            <h3 id="caseInspectTitle">Case Contents</h3>
+            <button id="closeCaseInspectModalBtn" type="button" class="modal-close">&times;</button>
+        </div>
+        <div class="case-inspect-table-wrap">
+            <table class="case-inspect-table">
+                <thead>
+                <tr>
+                    <th>Tier</th>
+                    <th>Multiplier</th>
+                    <th>Payout</th>
+                    <th>Chance</th>
+                </tr>
+                </thead>
+                <tbody id="caseInspectTableBody">
+                <!-- Populated dynamically -->
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
 
-    <div id="toastContainer" class="toast-container"></div>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="/app.js?v=39"></script>
+<div id="toastContainer" class="toast-container"></div>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="/app.js?v=40"></script>
 </body>
 
 </html>

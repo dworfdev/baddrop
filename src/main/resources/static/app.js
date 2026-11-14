@@ -78,7 +78,6 @@
     const profileDepositBtn = document.getElementById('profileDepositBtn');
     const profileWithdrawBtn = document.getElementById('profileWithdrawBtn');
 
-    const logoutBtn = document.getElementById('logoutBtn');
     const deleteAccountBtn = document.getElementById('deleteAccountBtn');
 
     // DOM Elements - Modals
@@ -111,10 +110,6 @@
     const walletProgressFill = document.getElementById('walletProgressFill');
 
 
-    const logoutModal = document.getElementById('logoutModal');
-    const closeLogoutModalBtn = document.getElementById('closeLogoutModalBtn');
-    const cancelLogoutBtn = document.getElementById('cancelLogoutBtn');
-    const confirmLogoutBtn = document.getElementById('confirmLogoutBtn');
 
     const deleteAccountModal = document.getElementById('deleteAccountModal');
     const closeDeleteAccountModalBtn = document.getElementById('closeDeleteAccountModalBtn');
@@ -307,6 +302,8 @@
         }
     }
 
+    let botUrl = '';
+
     async function loadAppConfig() {
         try {
             const config = await callApi('GET', '/api/config', null, false);
@@ -323,6 +320,9 @@
                     });
                     supportBox.hidden = false;
                 }
+            }
+            if (config && config.telegramBotUrl) {
+                botUrl = String(config.telegramBotUrl);
             }
             if (config && config.devLoginEnabled && devLoginBox) {
                 devLoginBox.hidden = false;
@@ -356,9 +356,15 @@
         await checkAndRestoreActiveDeposit(true);
     }
 
-    function showAuthMessage(text, canRetry) {
+    function showAuthMessage(text, canRetry, outsideTelegram) {
         if (authStatus) authStatus.textContent = text;
-        if (retryLoginBtn) retryLoginBtn.hidden = !canRetry;
+        if (retryLoginBtn) retryLoginBtn.hidden = !canRetry || Boolean(outsideTelegram);
+        const openBotBtn = document.getElementById('openBotBtn');
+        if (openBotBtn) {
+            const show = Boolean(outsideTelegram) && /^https:\/\/t\.me\//.test(botUrl);
+            openBotBtn.style.display = show ? 'inline-block' : 'none';
+            if (show) openBotBtn.href = botUrl;
+        }
     }
 
     // Telegram Mini App login: the server verifies the signed initData; no passwords anywhere.
@@ -366,7 +372,7 @@
         const tg = window.Telegram && window.Telegram.WebApp;
         const initData = tg && tg.initData ? tg.initData : '';
         if (!initData) {
-            showAuthMessage('Please open BADDROP from the Telegram bot.', true);
+            showAuthMessage('You are outside Telegram. Open BADDROP from our Telegram bot.', false, true);
             return false;
         }
         try {
@@ -1993,42 +1999,6 @@
         depositReceiptInput.addEventListener('input', () => depositReceiptInput.classList.remove('input-error'));
     }
 
-    function closeLogoutModal() {
-        if (logoutModal) {
-            logoutModal.classList.remove('open');
-        }
-    }
-
-    logoutBtn.addEventListener('click', () => {
-        if (logoutModal) {
-            logoutModal.classList.add('open');
-        }
-    });
-
-    if (closeLogoutModalBtn) {
-        closeLogoutModalBtn.addEventListener('click', closeLogoutModal);
-    }
-
-    if (cancelLogoutBtn) {
-        cancelLogoutBtn.addEventListener('click', closeLogoutModal);
-    }
-
-    if (confirmLogoutBtn) {
-        confirmLogoutBtn.addEventListener('click', async () => {
-            try {
-                await callApi('POST', '/api/auth/logout', {});
-                closeLogoutModal();
-                stopDepositCountdown();
-                balanceModal.classList.remove('open');
-                clearSession();
-                playerScreen.classList.remove('active');
-                welcomeScreen.classList.add('active');
-                showAuthMessage('Logged out.', true);
-                showToast('Logged out');
-            } catch (_) {}
-        });
-    }
-
     function closeDeleteAccountModal() {
         if (deleteAccountModal) {
             deleteAccountModal.classList.remove('open');
@@ -2097,14 +2067,18 @@
     (async function restoreSessionIfPresent() {
         await loadAppConfig();
         clearSession(); // also purges legacy storage from older builds
+        const tg = window.Telegram && window.Telegram.WebApp;
+        const insideTelegram = Boolean(tg && tg.initData);
+        // Inside Telegram the signed initData is the identity (no logout needed); a stale one (>1h old reload)
+        // falls back to the cookie session below.
+        if (insideTelegram && await loginViaTelegram()) return;
         try {
-            // The cookie (if any) authenticates this call; a 401 simply means "not logged in".
             const me = await callApi('GET', '/api/auth/me', null, false);
             await enterPlayerPortal(me);
             return;
         } catch (_) {
             csrfToken = '';
         }
-        await loginViaTelegram();
+        if (!insideTelegram) await loginViaTelegram(); // shows the "outside Telegram" gate
     })();
 })();

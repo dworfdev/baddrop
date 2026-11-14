@@ -5,7 +5,6 @@
 
     const userSearchInput = document.getElementById('userSearchInput');
     const findUserBtn = document.getElementById('findUserBtn');
-    const exitAdminBtn = document.getElementById('exitAdminBtn');
     const refreshPendingBtn = document.getElementById('refreshPendingBtn');
     const backToDefaultBtn = document.getElementById('backToDefaultBtn');
 
@@ -24,6 +23,7 @@
 
     const settleBtn = document.getElementById('settleBtn');
     const reconBtn = document.getElementById('reconBtn');
+    const deductPoolBtn = document.getElementById('deductPoolBtn');
     const reconPanel = document.getElementById('reconPanel');
 
     function showToast(message, isError = false) {
@@ -95,6 +95,23 @@
         } catch (_) {}
     }
 
+    async function deductPrizePool() {
+        try {
+            const b = await callApi('GET', '/api/admin/bankroll');
+            const raw = window.prompt('Amount to DEDUCT FROM THE PRIZE POOL (max ' + formatMoney(b.profitPool) + '). Use only to correct mistakes.', '');
+            if (raw === null) return;
+            const amount = Number(raw.replace(',', '.'));
+            if (!(amount > 0)) { showToast('Invalid amount', true); return; }
+            const note = window.prompt('Reason (required, goes to the audit log)', '') || '';
+            if (!note.trim()) { showToast('A reason is required', true); return; }
+            if (!window.confirm('Deduct ' + formatMoney(amount) + ' from the prize pool?\nReason: ' + note)) return;
+            const res = await callApi('POST', '/api/admin/bankroll/deduct-pool', { amount, note });
+            showToast('Deducted ' + formatMoney(res.amount) + ' from the pool (draw #' + res.drawId + ')');
+            await loadBankroll();
+            await showReconciliation();
+        } catch (_) {}
+    }
+
     async function settleHouseProfit() {
         try {
             const b = await callApi('GET', '/api/admin/bankroll');
@@ -136,7 +153,7 @@
                 'last owner draws:'
             ];
             (draws || []).slice(0, 10).forEach(d => {
-                lines.push('  #' + d.id + '  ' + m(d.amount) + '  ' + (d.createdAt || '') + '  ' + (d.adminName || '') + '  ' + (d.note || ''));
+                lines.push('  #' + d.id + '  ' + (d.source || 'HOUSE') + '  ' + m(d.amount) + '  ' + (d.createdAt || '') + '  ' + (d.adminName || '') + '  ' + (d.note || ''));
             });
             reconPanel.textContent = lines.join('\n');
             reconPanel.style.display = 'block';
@@ -425,16 +442,9 @@
 
     refreshPendingBtn.addEventListener('click', refreshDashboard);
 
-    // 3) Exit button - calls POST /api/admin/logout, leaves admin page and returns to logged in user page
-    exitAdminBtn.addEventListener('click', async () => {
-        try {
-            await callApi('POST', '/api/admin/auth/logout', {});
-        } catch (_) {}
-        window.location.href = '/';
-    });
-
     if (settleBtn) settleBtn.addEventListener('click', settleHouseProfit);
     if (reconBtn) reconBtn.addEventListener('click', showReconciliation);
+    if (deductPoolBtn) deductPoolBtn.addEventListener('click', deductPrizePool);
 
     // Initial load: fetch the CSRF token for this admin session, then bankroll metrics + pending transactions
     (async function init() {

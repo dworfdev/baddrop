@@ -117,4 +117,37 @@ class SettlementTest extends IntegrationTestBase {
         assertTrue(houseProfit().signum() >= 0);
         assertEquals(0, diff.compareTo(ApiClient.money(report().get("difference"))));
     }
+
+    @Test
+    void deductingFromThePrizePoolIsAdminOnlyBoundedAndKeepsTheBooksConsistent() {
+        accrueHouseProfit();
+        assertEquals(401, anonymous().post("/api/admin/bankroll/deduct-pool", map("amount", new BigDecimal("1"))).status());
+        assertEquals(403, registerPlayer().post("/api/admin/bankroll/deduct-pool", map("amount", new BigDecimal("1"))).status());
+        ApiClient a = admin();
+        assertEquals(400, a.post("/api/admin/bankroll/deduct-pool", map("amount", BigDecimal.ZERO)).status());
+        assertEquals(409, a.post("/api/admin/bankroll/deduct-pool", map("amount", prizePool().add(BigDecimal.ONE))).status());
+
+        BigDecimal poolBefore = prizePool();
+        BigDecimal profitBefore = houseProfit();
+        Map<String, Object> before = report();
+        BigDecimal take = new BigDecimal("0.5000");
+        ApiClient.Response r = a.post("/api/admin/bankroll/deduct-pool", map("amount", take, "note", "approved by mistake"));
+        assertEquals(200, r.status(), r.body());
+        assertEquals(0, poolBefore.subtract(take).compareTo(prizePool()));
+        assertEquals(0, profitBefore.compareTo(houseProfit()), "house profit must not change");
+        Map<String, Object> after = report();
+        assertEquals(0, ApiClient.money(before.get("difference")).compareTo(ApiClient.money(after.get("difference"))));
+        assertEquals(0, ApiClient.money(before.get("expectedWalletBalance")).subtract(take)
+                .compareTo(ApiClient.money(after.get("expectedWalletBalance"))));
+        assertTrue(a.get("/api/admin/owner-draws").jsonList().stream()
+                .anyMatch(d -> "POOL".equals(d.get("source")) && "approved by mistake".equals(d.get("note"))));
+        assertTrue(a.get("/api/admin/audit").jsonList().stream().anyMatch(x -> "PRIZE_POOL_DEDUCTED".equals(x.get("action"))));
+    }
+
+    @Test
+    void publicConfigExposesTheBotLinkAndNoDevLoginInProdLikeSetup() {
+        Map<String, Object> cfg = anonymous().get("/api/config").json();
+        assertTrue(cfg.containsKey("telegramBotUrl"));
+        assertEquals(false, cfg.get("devLoginEnabled"));
+    }
 }
