@@ -362,7 +362,7 @@
         const openBotBtn = document.getElementById('openBotBtn');
         if (openBotBtn) {
             const show = Boolean(outsideTelegram) && /^https:\/\/t\.me\//.test(botUrl);
-            openBotBtn.style.display = show ? 'inline-block' : 'none';
+            openBotBtn.hidden = !show;
             if (show) openBotBtn.href = botUrl;
         }
     }
