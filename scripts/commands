@@ -58,3 +58,6 @@ docker exec -it baddrop_mysql mysql -u root -p baddrop_db
 # Статус контейнеров и логи бэкенда
 docker ps
 docker logs -f --tail 100 baddrop_app
+
+# Внеплановый дамп бд
+docker compose exec -T mysql sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction --routines --triggers baddrop_db' | gzip > backups/manual_$(date +%F_%H%M).sql.gz

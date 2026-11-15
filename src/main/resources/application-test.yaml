@@ -59,4 +59,4 @@ slots:
 
 app:
   deposit:
-    admin-username: ${DEPOSIT_ADMIN_USERNAME:chromakid}
+    admin-username: ${DEPOSIT_ADMIN_USERNAME:xxrwell}
