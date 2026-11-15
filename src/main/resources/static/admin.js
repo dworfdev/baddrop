@@ -25,6 +25,8 @@
     const reconBtn = document.getElementById('reconBtn');
     const deductPoolBtn = document.getElementById('deductPoolBtn');
     const reconPanel = document.getElementById('reconPanel');
+    const maintenanceBtn = document.getElementById('maintenanceBtn');
+    const maintenanceStatus = document.getElementById('maintenanceStatus');
 
     function showToast(message, isError = false) {
         const toast = document.createElement('div');
@@ -92,6 +94,37 @@
             const bankroll = await callApi('GET', '/api/admin/bankroll');
             metricProfitPool.textContent = formatMoney(bankroll.profitPool);
             metricHouseProfit.textContent = formatMoney(bankroll.houseProfit);
+        } catch (_) {}
+    }
+
+    // Emergency switch: ON = players see "technical maintenance", every player API answers 503. Admin keeps working.
+    let maintenanceEnabled = false;
+    function renderMaintenance() {
+        if (!maintenanceStatus || !maintenanceBtn) return;
+        maintenanceStatus.textContent = maintenanceEnabled ? 'APP: STOPPED (maintenance ON)' : 'APP: LIVE';
+        maintenanceStatus.style.color = maintenanceEnabled ? '#ef4444' : '#22c55e';
+        maintenanceBtn.textContent = maintenanceEnabled ? '[ Resume app ]' : '[ Emergency stop ]';
+        maintenanceBtn.style.borderColor = maintenanceEnabled ? '#22c55e' : '#ef4444';
+        maintenanceBtn.style.color = maintenanceEnabled ? '#22c55e' : '#ef4444';
+    }
+    async function loadMaintenance() {
+        try {
+            const r = await callApi('GET', '/api/admin/maintenance');
+            maintenanceEnabled = Boolean(r.enabled);
+            renderMaintenance();
+        } catch (_) {}
+    }
+    async function toggleMaintenance() {
+        const next = !maintenanceEnabled;
+        const q = next
+            ? 'STOP the app for all players? They will see "Technical maintenance" until you resume it.'
+            : 'Resume the app for all players?';
+        if (!window.confirm(q)) return;
+        try {
+            const r = await callApi('POST', '/api/admin/maintenance', { enabled: next });
+            maintenanceEnabled = Boolean(r.enabled);
+            renderMaintenance();
+            showToast(maintenanceEnabled ? 'App stopped: players see maintenance screen' : 'App resumed');
         } catch (_) {}
     }
 
@@ -445,6 +478,7 @@
     if (settleBtn) settleBtn.addEventListener('click', settleHouseProfit);
     if (reconBtn) reconBtn.addEventListener('click', showReconciliation);
     if (deductPoolBtn) deductPoolBtn.addEventListener('click', deductPrizePool);
+    if (maintenanceBtn) maintenanceBtn.addEventListener('click', toggleMaintenance);
 
     // Initial load: fetch the CSRF token for this admin session, then bankroll metrics + pending transactions
     (async function init() {
@@ -455,5 +489,6 @@
             return;
         }
         refreshDashboard();
+        loadMaintenance();
     })();
 })();

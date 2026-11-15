@@ -37,14 +37,17 @@ slots:
   admin:
     # No default credentials on purpose. To use /admin-login.html locally, set these three env vars
     # (generate them with AdminCredentialsGenerator). JUnit tests do not need them.
-    username: ${ADMIN_USERNAME:admin}
+    username: ${ADMIN_USERNAME:}
     password-hash: ${ADMIN_PASSWORD_HASH:}
-    totp-secret: ${ADMIN_TOTP_SECRET:123456}
+    totp-secret: ${ADMIN_TOTP_SECRET:}
   telegram:
     # Public link of the bot (not a secret): shown on the "outside Telegram" screen. Replace with your real bot link.
     bot-url: https://t.me/bad_drop_bot
     bot-token: ${TELEGRAM_BOT_TOKEN:}
     max-auth-age-seconds: 3600
+  notify:
+    bot-token: ${ADMIN_NOTIFY_BOT_TOKEN:}
+    chat-id: ${ADMIN_NOTIFY_CHAT_ID:}
   auth:
     # Local only: log in as any username without Telegram. Never enable in prod.
     dev-login-enabled: true

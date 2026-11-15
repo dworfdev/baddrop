@@ -1,6 +1,7 @@
 package com.dworf.slots_demo.security;
 
 import com.dworf.slots_demo.entity.AuthSession;
+import com.dworf.slots_demo.service.MaintenanceService;
 import com.dworf.slots_demo.service.SessionService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -32,9 +33,11 @@ public class AuthInterceptor implements HandlerInterceptor {
             "POST /api/admin/auth/login");
 
     private final SessionService sessions;
+    private final MaintenanceService maintenance;
 
-    public AuthInterceptor(SessionService sessions) {
+    public AuthInterceptor(SessionService sessions, MaintenanceService maintenance) {
         this.sessions = sessions;
+        this.maintenance = maintenance;
     }
 
     public static AuthSession session(HttpServletRequest request) {
@@ -52,6 +55,16 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
         if ("OPTIONS".equals(method)) {
             return deny(req, res, 403, "Forbidden"); // same-origin app: no CORS preflight is ever legitimate
+        }
+
+        // Emergency switch: players get "maintenance" for everything except the config probe; admin APIs keep working.
+        if (uri.startsWith("/api") && !uri.startsWith("/api/admin/")
+                && !("GET".equals(method) && uri.equals("/api/config")) && maintenance.isEnabled()) {
+            res.setStatus(503);
+            res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            res.setCharacterEncoding(StandardCharsets.UTF_8.name());
+            res.getWriter().write("{\"status\":503,\"maintenance\":true,\"message\":\"Technical maintenance in progress\"}");
+            return false;
         }
 
         boolean unsafe = !("GET".equals(method) || "HEAD".equals(method));

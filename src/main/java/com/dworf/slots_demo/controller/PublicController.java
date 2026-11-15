@@ -4,6 +4,7 @@ import com.dworf.slots_demo.dto.CaseResponse;
 import com.dworf.slots_demo.dto.LeaderboardEntryResponse;
 import com.dworf.slots_demo.dto.LiveFeedEventResponse;
 import com.dworf.slots_demo.service.CaseOpenerEngine;
+import com.dworf.slots_demo.service.MaintenanceService;
 import com.dworf.slots_demo.service.PlayService;
 import com.dworf.slots_demo.service.WalletService;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,11 +22,13 @@ public class PublicController {
     private final WalletService wallet;
     private final boolean devLoginEnabled;
     private final String telegramBotUrl;
+    private final MaintenanceService maintenance;
 
-    public PublicController(PlayService play, WalletService wallet,
+    public PublicController(PlayService play, WalletService wallet, MaintenanceService maintenance,
                             @Value("${slots.auth.dev-login-enabled:false}") boolean devLoginEnabled,
                             @Value("${slots.telegram.bot-url:}") String telegramBotUrl) {
         this.telegramBotUrl = telegramBotUrl;
+        this.maintenance = maintenance;
         this.play = play;
         this.wallet = wallet;
         this.devLoginEnabled = devLoginEnabled;
@@ -47,6 +50,7 @@ public class PublicController {
         m.put("minWithdrawAmount", WalletService.MIN_WITHDRAW_AMOUNT);
         m.put("devLoginEnabled", devLoginEnabled);
         m.put("telegramBotUrl", telegramBotUrl);
+        m.put("maintenance", maintenance.isEnabled());
         return m;
     }
 

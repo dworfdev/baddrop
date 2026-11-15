@@ -35,15 +35,17 @@ public class WalletService {
     private final IdempotencyService idempotency;
     private final Clock clock;
     private final String depositAdminUsername;
+    private final AdminNotifier notifier;
 
     public WalletService(UserRepository userRepository, BalanceTransactionRepository transactionRepository,
-                         IdempotencyService idempotency, Clock clock,
+                         IdempotencyService idempotency, Clock clock, AdminNotifier notifier,
                          @Value("${app.deposit.admin-username:chromakid}") String depositAdminUsername) {
         this.userRepository = userRepository;
         this.transactionRepository = transactionRepository;
         this.idempotency = idempotency;
         this.clock = clock;
         this.depositAdminUsername = depositAdminUsername;
+        this.notifier = notifier;
     }
 
     public String getDepositAdminUsername() {
@@ -147,6 +149,8 @@ public class WalletService {
                 tx.getTxHash(), TransactionStatus.AWAITING_PAYMENT, TransactionStatus.PENDING, now) != 1) {
             throw conflict("Deposit session was already confirmed or expired");
         }
+        notifier.notifyAfterCommit("\uD83D\uDFE2 New DEPOSIT request\nUser: " + user.getUsername()
+                + "\nAmount: $" + tx.getAmount().toPlainString() + " USDT\nReview it in the admin panel.");
         return UserResponse.fromEntity(user);
     }
 
@@ -182,6 +186,8 @@ public class WalletService {
         userRepository.save(user);
         transactionRepository.save(new BalanceTransaction(
                 user, TransactionType.WITHDRAW, amount, TransactionStatus.PENDING, null, wallet));
+        notifier.notifyAfterCommit("\uD83D\uDD34 New WITHDRAWAL request\nUser: " + user.getUsername()
+                + "\nAmount: $" + amount.toPlainString() + " USDT\nReview it in the admin panel.");
         return UserResponse.fromEntity(user);
     }
 

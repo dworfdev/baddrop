@@ -61,6 +61,9 @@ slots:
     bot-url: https://t.me/bad_drop_bot
     bot-token: ${TELEGRAM_BOT_TOKEN:}
     max-auth-age-seconds: ${TELEGRAM_MAX_AUTH_AGE_SECONDS:3600}
+  notify:
+    bot-token: ${ADMIN_NOTIFY_BOT_TOKEN:}
+    chat-id: ${ADMIN_NOTIFY_CHAT_ID:}
   auth:
     dev-login-enabled: false
   bankroll:

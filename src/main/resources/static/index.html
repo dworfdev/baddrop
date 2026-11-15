@@ -23,8 +23,8 @@
         /* app background image */
         .player-frame, .welcome-container {
             background:
-                    linear-gradient(180deg, rgba(14,18,26,.30) 0%, rgba(14,18,26,.45) 100%),
-                    url('/imgs/app-background.png') center top / cover no-repeat, #0E121A;
+                linear-gradient(180deg, rgba(14,18,26,.30) 0%, rgba(14,18,26,.45) 100%),
+                url('/imgs/app-background.png') center top / cover no-repeat, #0E121A;
         }
         .profile-actions-stack + #clearCacheBtn { width: 100%; margin-top: 10px; }
         /* LIVE bar: still one row, but each pill is taller and holds two lines of text */
@@ -33,6 +33,13 @@
         .live-pill-line1, .live-pill-line2 { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .live-pill-line1 { font-size: 10px; font-weight: 500; opacity: .85; }
         .live-pill-line2 { font-size: 10px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; }
+        /* maintenance (emergency switch) screen */
+        .maintenance-screen { position: fixed; inset: 0; z-index: 5000; display: flex; align-items: center; justify-content: center; padding: 24px;
+            background: linear-gradient(180deg, rgba(14,18,26,.96), rgba(10,14,23,.98)), url('/imgs/app-background.png') center / cover no-repeat, #0E121A; }
+        .maintenance-card { max-width: 360px; width: 100%; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+        .maintenance-icon { font-size: 54px; line-height: 1; color: #FACC15; filter: drop-shadow(0 0 18px rgba(250,204,21,.5)); }
+        .maintenance-card h2 { font-size: 24px; font-weight: 800; }
+        .maintenance-card p { color: var(--text-muted); font-size: 15px; line-height: 1.5; }
         /* case cards: name + price on one line, buttons below */
         .case-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; }
         .case-title-row .case-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -128,6 +135,15 @@
 <!-- =================================================================== -->
 <!-- SCREEN 1: WELCOME / AUTH SCREEN                                     -->
 <!-- =================================================================== -->
+<!-- Emergency switch screen: shown when the owner turns maintenance mode on -->
+<div id="maintenanceScreen" class="maintenance-screen" hidden>
+    <div class="maintenance-card">
+        <div class="maintenance-icon" aria-hidden="true">&#9881;</div>
+        <h2>Technical maintenance</h2>
+        <p>BADDROP is temporarily unavailable while we make some improvements. Your balance and items are safe. Please come back a little later.</p>
+        <button type="button" class="pill-btn-primary" onclick="location.reload()">Check again</button>
+    </div>
+</div>
 <div id="welcomeScreen" class="screen-wrapper active">
     <div class="welcome-container">
         <h1 class="welcome-title">Welcome to BADDROP!</h1>
@@ -588,7 +604,7 @@
 
 <div id="toastContainer" class="toast-container"></div>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="/app.js?v=50"></script>
+<script src="/app.js?v=51"></script>
 </body>
 
 </html>

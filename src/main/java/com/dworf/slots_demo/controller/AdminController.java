@@ -3,6 +3,8 @@ package com.dworf.slots_demo.controller;
 import com.dworf.slots_demo.dto.AdminLoginRequest;
 import com.dworf.slots_demo.dto.AdminUserOverviewResponse;
 import com.dworf.slots_demo.dto.ApproveTransactionRequest;
+import com.dworf.slots_demo.dto.MaintenanceRequest;
+import com.dworf.slots_demo.service.MaintenanceService;
 import com.dworf.slots_demo.dto.BankrollResponse;
 import com.dworf.slots_demo.dto.SessionResponse;
 import com.dworf.slots_demo.dto.TransactionResponse;
@@ -53,12 +55,13 @@ public class AdminController {
     private final AuditLogRepository auditLog;
     private final SettlementService settlement;
     private final OwnerDrawRepository ownerDraws;
+    private final MaintenanceService maintenance;
     private final boolean allowBankrollReset;
 
     public AdminController(AdminAuthService adminAuth, SessionService sessions, SessionCookies cookies,
                            TransactionReviewService review, CaseOpeningService caseOpeningService,
                            ReconciliationService reconciliation, AuditService audit, AuditLogRepository auditLog,
-                           SettlementService settlement, OwnerDrawRepository ownerDraws,
+                           SettlementService settlement, OwnerDrawRepository ownerDraws, MaintenanceService maintenance,
                            @Value("${slots.admin.allow-bankroll-reset:false}") boolean allowBankrollReset) {
         this.adminAuth = adminAuth;
         this.sessions = sessions;
@@ -70,6 +73,7 @@ public class AdminController {
         this.auditLog = auditLog;
         this.settlement = settlement;
         this.ownerDraws = ownerDraws;
+        this.maintenance = maintenance;
         this.allowBankrollReset = allowBankrollReset;
     }
 
@@ -144,6 +148,19 @@ public class AdminController {
     public SettlementService.Settled deductPool(@RequestBody SettleRequest body, HttpServletRequest req) {
         if (body == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Body required");
         return settlement.deductPrizePool(body.amount(), body.note(), actor(req), req.getRemoteAddr());
+    }
+
+    /** Emergency switch state. */
+    @GetMapping("/api/admin/maintenance")
+    public Map<String, Object> maintenanceState() {
+        return Map.of("enabled", maintenance.isEnabled());
+    }
+
+    /** Emergency switch: while ON, players see "technical maintenance" and every player API answers 503. */
+    @PostMapping("/api/admin/maintenance")
+    public Map<String, Object> setMaintenance(@RequestBody MaintenanceRequest body, HttpServletRequest req) {
+        if (body == null || body.enabled() == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "enabled is required");
+        return Map.of("enabled", maintenance.set(body.enabled(), actor(req), req.getRemoteAddr()));
     }
 
     @GetMapping("/api/admin/owner-draws")

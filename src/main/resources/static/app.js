@@ -172,6 +172,24 @@
         requestAnimationFrame(step);
     }
 
+    // Emergency switch: the server answers 503 {maintenance:true} to every player call while it is on.
+    let maintenanceTimerId = null;
+    function showMaintenanceScreen() {
+        const el = document.getElementById('maintenanceScreen');
+        if (!el) return;
+        el.hidden = false;
+        if (!maintenanceTimerId) {
+            // come back automatically as soon as the owner switches it off
+            maintenanceTimerId = setInterval(async () => {
+                try {
+                    const r = await fetch('/api/config', { credentials: 'same-origin', cache: 'no-store' });
+                    const c = await r.json();
+                    if (c && c.maintenance === false) location.reload();
+                } catch (_) {}
+            }, 20000);
+        }
+    }
+
     async function callApi(method, url, body = null, showToastOnError = true, extraHeaders = null) {
         const options = {
             method,
@@ -198,6 +216,10 @@
         }
 
         if (!response.ok) {
+            if (response.status === 503 && data && data.maintenance) {
+                showMaintenanceScreen();
+                throw new Error('Maintenance');
+            }
             const msg = data && data.message ? data.message : `Error ${response.status}`;
             if (showToastOnError) {
                 showToast(msg, true);
@@ -322,6 +344,7 @@
     }
 
     let botUrl = '';
+    let maintenanceOn = false;
 
     // Test profile only: drop every browser-side cache of the frontend so edited static files are picked up without restarting Spring.
     async function clearFrontendCache() {
@@ -346,6 +369,10 @@
     async function loadAppConfig() {
         try {
             const config = await callApi('GET', '/api/config', null, false);
+            if (config && config.maintenance) {
+                maintenanceOn = true;
+                showMaintenanceScreen();
+            }
             if (config && config.depositAdminUsername) {
                 const supportName = String(config.depositAdminUsername).replace(/^@/, '');
                 const supportLink = document.getElementById('supportLink');
@@ -2123,6 +2150,7 @@
     // =========================================================================
     (async function restoreSessionIfPresent() {
         await loadAppConfig();
+        if (maintenanceOn) return; // technical works: do not even try to sign in
         clearSession(); // also purges legacy storage from older builds
         const tg = window.Telegram && window.Telegram.WebApp;
         const insideTelegram = Boolean(tg && tg.initData);

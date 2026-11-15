@@ -1,0 +1,15 @@
+# Add this service to your existing docker-compose.yml (same level as the `app` and `db` services).
+# Adjust: the name of your MySQL service (DB_HOST), and keep the same .env file the app already uses.
+  db-backup:
+    build: ./deploy/backup            # path to this folder, relative to your docker-compose.yml
+    restart: unless-stopped
+    depends_on:
+      - db                            # <- your MySQL service name
+    env_file: .env                    # DB_USERNAME, DB_PASSWORD, DB_NAME, ADMIN_NOTIFY_BOT_TOKEN, ADMIN_NOTIFY_CHAT_ID
+    environment:
+      DB_HOST: db                     # <- your MySQL service name
+      BACKUP_HOUR: "3"                # 03:00 UTC daily
+      BACKUP_KEEP_DAYS: "14"
+      BACKUP_SEND_TELEGRAM: "false"   # "true" = also send the .sql.gz file to your notify bot chat (contains player data)
+    volumes:
+      - ./backups:/backups            # dumps appear in ./backups next to docker-compose.yml
