@@ -24,6 +24,8 @@ spring:
       path: /h2-console
   web:
     resources:
+      # serve the frontend straight from the source folder (falls back to the classpath), so edits show up without restarting
+      static-locations: file:src/main/resources/static/,classpath:/static/
       cache:
         period: 0
         cachecontrol:
@@ -35,9 +37,9 @@ slots:
   admin:
     # No default credentials on purpose. To use /admin-login.html locally, set these three env vars
     # (generate them with AdminCredentialsGenerator). JUnit tests do not need them.
-    username: ${ADMIN_USERNAME:}
+    username: ${ADMIN_USERNAME:admin}
     password-hash: ${ADMIN_PASSWORD_HASH:}
-    totp-secret: ${ADMIN_TOTP_SECRET:}
+    totp-secret: ${ADMIN_TOTP_SECRET:123456}
   telegram:
     # Public link of the bot (not a secret): shown on the "outside Telegram" screen. Replace with your real bot link.
     bot-url: https://t.me/bad_drop_bot

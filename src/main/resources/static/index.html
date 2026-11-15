@@ -20,6 +20,19 @@
         /* jackpot explosion sits on top of the cash rain and is brighter than the 0.4 rain overlay */
         .case-outcome-bg-video.case-outcome-fx-video.active { opacity: 0.95; }
 
+        /* app background image */
+        .player-frame, .welcome-container {
+            background:
+                    linear-gradient(180deg, rgba(14,18,26,.30) 0%, rgba(14,18,26,.45) 100%),
+                    url('/imgs/app-background.png') center top / cover no-repeat, #0E121A;
+        }
+        .profile-actions-stack + #clearCacheBtn { width: 100%; margin-top: 10px; }
+        /* LIVE bar: still one row, but each pill is taller and holds two lines of text */
+        .live-activity-bar { padding: 6px 8px; border-radius: 22px; }
+        .live-event-pill { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 5px 4px; border-radius: 16px; line-height: 1.2; }
+        .live-pill-line1, .live-pill-line2 { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .live-pill-line1 { font-size: 10px; font-weight: 500; opacity: .85; }
+        .live-pill-line2 { font-size: 10px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; }
         /* case cards: name + price on one line, buttons below */
         .case-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; }
         .case-title-row .case-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -272,6 +285,8 @@
                     </button>
                 </div>
 
+                <button id="clearCacheBtn" type="button" class="profile-action-btn" hidden>Clear cache (test only)</button>
+
                 <p id="supportContact" class="support-contact" hidden>
                     Support contact: <a id="supportLink" href="#" target="_blank" rel="noopener noreferrer"></a>
                 </p>
@@ -511,6 +526,7 @@
 <div id="caseOutcomeModal" class="modal-backdrop case-outcome-backdrop">
     <video id="caseOutcomeBgVideo" class="case-outcome-bg-video" src="/video/cash-rain-6sec-blurred.mp4?v=1" preload="auto" muted playsinline webkit-playsinline aria-hidden="true"></video>
     <video id="caseOutcomeFxVideo" class="case-outcome-bg-video case-outcome-fx-video" src="/video/yellow-explosion-effect-1and27sec.mp4?v=1" preload="auto" muted playsinline webkit-playsinline aria-hidden="true"></video>
+    <video id="caseOutcomeFxVioletVideo" class="case-outcome-bg-video case-outcome-fx-video" src="/video/violet-explosion-effect-1and27sec.mp4?v=1" preload="auto" muted playsinline webkit-playsinline aria-hidden="true"></video>
     <div id="caseOutcomeStage" class="case-outcome-stage">
         <div class="outcome-line">
             <img id="caseOutcomeTitleImg" class="case-outcome-title-img" alt="Outcome Tier" draggable="false" style="visibility: hidden;" />
@@ -572,7 +588,7 @@
 
 <div id="toastContainer" class="toast-container"></div>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="/app.js?v=48"></script>
+<script src="/app.js?v=50"></script>
 </body>
 
 </html>

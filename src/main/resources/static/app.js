@@ -138,8 +138,9 @@
     const caseOutcomeModal = document.getElementById('caseOutcomeModal');
     const caseOutcomeBgVideo = document.getElementById('caseOutcomeBgVideo');
     const caseOutcomeFxVideo = document.getElementById('caseOutcomeFxVideo');
+    const caseOutcomeFxVioletVideo = document.getElementById('caseOutcomeFxVioletVideo');
     // cash rain (SMALL WIN / NICE WIN / TOP PRIZE) and the yellow explosion (TOP PRIZE only); neither loops
-    const outcomeVideos = [caseOutcomeBgVideo, caseOutcomeFxVideo].filter(Boolean);
+    const outcomeVideos = [caseOutcomeBgVideo, caseOutcomeFxVideo, caseOutcomeFxVioletVideo].filter(Boolean);
     const caseOutcomeTitleImg = document.getElementById('caseOutcomeTitleImg');
     const caseOutcomeUsdtAmount = document.getElementById('caseOutcomeUsdtAmount');
 
@@ -265,6 +266,15 @@
         return `${username} won $${amountStr} from ${caseName}`;
     }
 
+    // Two-line variant for the LIVE bar: ["fedan won $0.05 from", "HAMSTER BRONZE CASE"]
+    function formatLiveFeedEventLines(ev) {
+        if (!ev || !ev.username) return null;
+        const rawAmount = ev.wonAmount !== undefined && ev.wonAmount !== null ? ev.wonAmount : ev.amount;
+        const amountStr = (Number(rawAmount) || 0).toFixed(2);
+        const caseName = resolveCaseDisplayName(ev.caseName || ev.openedCase);
+        return [`${String(ev.username).trim()} won $${amountStr} from`, String(caseName)];
+    }
+
     function ensureLiveFeedPolling() {
         if (!liveFeedPollIntervalId) {
             liveFeedPollIntervalId = setInterval(() => {
@@ -288,12 +298,18 @@
             liveTickerTrack.innerHTML = '';
             let renderedCount = 0;
             events.slice(0, 2).forEach(ev => {
-                const text = formatLiveFeedEventText(ev);
-                if (!text) return;
+                const lines = formatLiveFeedEventLines(ev);
+                if (!lines) return;
                 const tierMeta = classifySlotTier(ev.outcomeTier || '');
                 const pill = document.createElement('div');
                 pill.className = `live-event-pill ${tierMeta.className}`;
-                pill.textContent = text;
+                pill.title = lines.join(' ');
+                lines.forEach((t, i) => {
+                    const row = document.createElement('span');
+                    row.className = i === 0 ? 'live-pill-line1' : 'live-pill-line2';
+                    row.textContent = t;
+                    pill.appendChild(row);
+                });
                 liveTickerTrack.appendChild(pill);
                 renderedCount++;
             });
@@ -306,6 +322,26 @@
     }
 
     let botUrl = '';
+
+    // Test profile only: drop every browser-side cache of the frontend so edited static files are picked up without restarting Spring.
+    async function clearFrontendCache() {
+        const btn = document.getElementById('clearCacheBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Clearing...'; }
+        try {
+            if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+                (await navigator.serviceWorker.getRegistrations()).forEach(r => r.unregister());
+            }
+            if (window.caches && caches.keys) {
+                await Promise.all((await caches.keys()).map(k => caches.delete(k)));
+            }
+            const urls = new Set([location.pathname]);
+            document.querySelectorAll('script[src], link[rel="stylesheet"][href], video[src]').forEach(el => {
+                urls.add(el.getAttribute('src') || el.getAttribute('href'));
+            });
+            await Promise.all([...urls].map(u => fetch(u, { cache: 'reload' }).catch(() => {})));
+        } catch (_) {}
+        location.replace(location.pathname + '?_=' + Date.now());
+    }
 
     async function loadAppConfig() {
         try {
@@ -329,6 +365,12 @@
             }
             if (config && config.devLoginEnabled && devLoginBox) {
                 devLoginBox.hidden = false;
+            }
+            // dev tools exist only on the test profile (the same flag that enables dev login)
+            const clearCacheBtn = document.getElementById('clearCacheBtn');
+            if (config && config.devLoginEnabled && clearCacheBtn) {
+                clearCacheBtn.hidden = false;
+                clearCacheBtn.addEventListener('click', clearFrontendCache);
             }
         } catch (_) {}
     }
@@ -1563,6 +1605,8 @@
                     playOutcomeVideo(caseOutcomeBgVideo);              // cash rain for SMALL WIN / NICE WIN / TOP PRIZE
                     if (isJackpotHighlight) {
                         playOutcomeVideo(caseOutcomeFxVideo);          // plus the yellow explosion on the jackpot
+                    } else if (highestTierMeta.rank === 5) {
+                        playOutcomeVideo(caseOutcomeFxVioletVideo);    // plus the violet explosion on NICE WIN
                     }
                 }
 
